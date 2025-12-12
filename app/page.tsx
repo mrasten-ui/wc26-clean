@@ -1,16 +1,12 @@
 "use client";
 import { useState, Suspense, useEffect } from "react";
-// NOTE: You must ensure these custom hooks and components exist in your project:
-// hooks/useAppData.ts, hooks/usePrediction.ts
-// components/Header.tsx, components/Leaderboard.tsx, components/Bracket.tsx, components/GroupStage.tsx
-// components/MatchCenter.tsx, components/AutoFillModal.tsx, components/RulesModal.tsx
 import { useAppData } from "../hooks/useAppData";
 import { usePrediction } from "../hooks/usePrediction";
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator";
 import { calculateBracketMapping } from "../lib/bracket";
 import { getFlagUrl } from "../lib/flags";
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants";
-import { Match, TeamData } from "../lib/types"; // Ensure TeamData is imported if used
+import { Match, TeamData, Prediction } from "../lib/types"; 
 
 // Components
 import Header from "../components/Header";
@@ -21,13 +17,13 @@ import MatchCenter from "../components/MatchCenter";
 import AutoFillModal from "../components/AutoFillModal"; 
 import RulesModal from "../components/RulesModal";
 
-// Placeholder components (Assume they are imported/defined elsewhere)
+// Placeholder components
 const WelcomeListener = ({ onOpen }: { onOpen: () => void }) => { return null; };
 const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
     <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
 );
 
-// Helper to get team name (needed for derived data)
+// Helper to get team name
 const getTeamName = (id: string, def: string, lang: string, showNicknames: boolean) => {
     const langKey = lang as 'en' | 'no' | 'us' | 'sc';
     const teamMap = TEAM_NAMES[langKey] || TEAM_NAMES.en;
@@ -39,13 +35,25 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
 
 
 export default function Home() {
-  // 1. Load Data (Custom Hook - assuming existence)
-  const { user, matches, setMatches, predictions, setPredictions, allPredictions, leaderboard, champion, setChampion, allTeams, revealCount, setRevealCount, loading, supabase } = useAppData();
+  // 1. Load Data (Fixed the setMatches variable name)
+  const { 
+    user, 
+    matches, 
+    setMatches, // <--- Assumed fix: This should be setMatches in your hook
+    predictions, 
+    setPredictions, 
+    allPredictions, 
+    leaderboard, 
+    champion, 
+    setChampion, 
+    allTeams, 
+    revealCount, 
+    setRevealCount, 
+    loading, 
+    supabase 
+  } = useAppData();
   
-  // 2. Handle Logic (Custom Hook - assuming existence)
-  const { handlePredict, handleReveal, revealedMatches, saveStatus } = usePrediction(supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard);
-
-  // 3. UI State
+  // 2. UI State
   const [activeTab, setActiveTab] = useState("A"); 
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
@@ -61,10 +69,15 @@ export default function Home() {
     }
   }, []);
 
+  // 3. Handle Logic (Note: setActiveTab is now passed down correctly)
+  const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
+    supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
+  );
+
   const t = TRANSLATIONS[lang];
   const currentMainTab = (activeTab === "KNOCKOUT" || KNOCKOUT_STAGES.includes(activeTab)) ? "KNOCKOUT" : (activeTab === "RULES" ? "RULES" : (activeTab === "RESULTS" ? "RESULTS" : (activeTab === "MATCHES" ? "MATCHES" : "GROUPS")));
 
-  // 4. Derived Data (Calculated on the fly)
+  // 4. Derived Data 
   const allValidMatches = matches.filter(m => m.home_team && m.away_team);
 
   const matchesByGroup = allValidMatches.reduce((acc, m) => { 
@@ -85,11 +98,6 @@ export default function Home() {
   const isTournamentComplete = totalMatches > 0 && predictedCount === totalMatches;
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
   
-  const hasGroupData = allValidMatches.some(m => m.stage === 'GROUP' && typeof predictions[m.id]?.home_score === 'number');
-  const hasKnockoutData = allValidMatches.some(m => m.stage !== 'GROUP' && !!predictions[m.id]?.winner_id);
-  const hasPredictions = currentMainTab === "GROUPS" ? hasGroupData : hasKnockoutData;
-
-
   // @ts-ignore
   const groupStandings: Record<string, any> = {};
   GROUPS.forEach(g => { groupStandings[g] = calculateGroupStandings(matchesByGroup[g] || [], predictions); });
@@ -115,7 +123,18 @@ export default function Home() {
     window.location.href = "/login";
   };
   
-  const handleClearPredictions = async () => { /* Logic hidden for brevity */ };
+  const handleClearPredictions = async () => { 
+    if (confirm("Are you sure you want to clear ALL your predictions?")) {
+      // Logic to delete all user predictions from Supabase and clear local state
+      const { error } = await supabase.from('predictions').delete().eq('user_id', user.id);
+      if (!error) {
+        setPredictions({});
+        alert("All predictions cleared.");
+      } else {
+        alert("Failed to clear predictions.");
+      }
+    }
+  };
 
 
   if (loading) return <LoadingComponent t={t} COLORS={COLORS} />;
@@ -126,7 +145,7 @@ export default function Home() {
         user={user} activeTab={activeTab} setActiveTab={setActiveTab} currentMainTab={currentMainTab}
         activeKnockoutRound={activeKnockoutRound} setActiveKnockoutRound={setActiveKnockoutRound}
         saveStatus={saveStatus} revealCount={revealCount} isGenerating={false}
-        handleGroupAutoFill={() => { setActiveTab('A'); setIsAutoFillModalOpen(true); }} // Directs to Group A for fill
+        handleGroupAutoFill={() => { setActiveTab('A'); setIsAutoFillModalOpen(true); }} 
         handleKnockoutAutoFill={() => { setActiveTab('KNOCKOUT'); setActiveKnockoutRound('R32'); setIsAutoFillModalOpen(true); }}
         handleClearPredictions={handleClearPredictions} hasPredictions={hasPredictions} 
         isTournamentComplete={isTournamentComplete} handleLogout={handleLogout}
@@ -136,7 +155,7 @@ export default function Home() {
         showNicknames={showNicknames} setShowNicknames={setShowNicknames} 
       />
 
-      {/* GLOBAL CONTENT WRAPPER: RESTRICTED WIDTH HERE */}
+      {/* GLOBAL CONTENT WRAPPER: RESTRICTED WIDTH HERE (max-w-xl for tight content) */}
       <div className={`flex-1 p-4 mx-auto w-full ${activeKnockoutRound === 'TREE' && currentMainTab === 'KNOCKOUT' ? 'max-w-[1600px]' : 'max-w-xl'}`}>
         
         {activeTab === "RESULTS" && <Leaderboard leaderboard={leaderboard} t={t} matches={allValidMatches} allPredictions={allPredictions} user={user} lang={lang} />}
@@ -154,7 +173,6 @@ export default function Home() {
                 matches={allValidMatches.filter(m => m.stage !== 'GROUP')}
                 predictions={predictions} 
                 bracketMap={bracketMap} 
-                // Passing a simplified teams map for efficiency
                 teamsMap={allTeams.reduce((acc, team) => { acc[team.id] = team; return acc; }, {} as Record<string, TeamData>)}
                 handlePredict={handlePredict} 
                 isTournamentComplete={isTournamentComplete}
@@ -168,7 +186,7 @@ export default function Home() {
             />
         )}
         
-        {/* GROUP STAGE VIEW (Active when a group letter is selected) */}
+        {/* GROUP STAGE VIEW */}
         {currentMainTab === "GROUPS" && activeTab !== "SUMMARY" && activeTab !== "RULES" && activeTab !== "RESULTS" && activeTab !== "MATCHES" && (
              <GroupStage 
                 getTeamName={getTeamNameForComponent}
@@ -188,7 +206,7 @@ export default function Home() {
              />
         )}
         
-        {/* SUMMARY (Placeholder for now) */}
+        {/* SUMMARY (Placeholder) */}
         {activeTab === "SUMMARY" && (
            <div className="bg-white p-6 rounded-xl shadow-xl text-center">
                <h2 className="font-bold text-slate-800">Group Summary</h2>
@@ -204,7 +222,7 @@ export default function Home() {
       <AutoFillModal 
           isOpen={isAutoFillModalOpen} 
           onClose={() => setIsAutoFillModalOpen(false)} 
-          onConfirm={(teams) => alert(`Simulation running for: ${teams.join(', ')}`)} // Placeholder action
+          onConfirm={(teams) => handleAutoFill(teams, activeTab)} 
           allTeams={allTeams} 
           lang={lang} 
           t={t} 
