@@ -1,48 +1,112 @@
-export type Match = {
-  id: number;
-  stage: string;
-  kickoff_time: string;
-  venue: string;
-  home_team_id: string;
-  away_team_id: string;
-  home_score: number | null;
-  away_score: number | null;
-  status: string; // 'SCHEDULED' | 'IN_PLAY' | 'FINISHED'
-  home_team: {
-    id: string;
-    name: string;
-    group_id: string;
-    fifa_ranking: number;
+// lib/types.ts
+
+// ===========================================
+// CORE DATA STRUCTURES (Used in Database)
+// ===========================================
+
+/**
+ * Defines the structure for a World Cup Team.
+ * This MUST match the data structure in your 'teams' table.
+ */
+export interface TeamData {
+    id: string; // FIFA 3-letter code (e.g., 'ARG', 'SCO')
+    name: string; // Full team name
+    group_id: string; // Group letter (e.g., 'A', 'K')
+    fifa_ranking: number; // For tie-breaking/seeding
     flag_emoji: string;
-  };
-  away_team: {
+    // Add any other team fields you use in your code here
+}
+
+/**
+ * Defines the structure for a World Cup Match.
+ * This MUST match the data structure in your 'matches' table.
+ */
+export interface Match {
+    id: number; // Match ID (1-104)
+    stage: 'GROUP' | 'R32' | 'R16' | 'QF' | 'SF' | '3RD' | 'FINAL';
+    kickoff_time: Date | string;
+    venue: string;
+
+    // For Group Stage: Direct team IDs
+    home_team_id: string | null;
+    away_team_id: string | null;
+
+    // For Knockout Stage: Codes pointing to previous match winners/group positions
+    home_code: string | null; // e.g., 'W49', '1A'
+    away_code: string | null; // e.g., 'W50', '2B'
+
+    // Status and actual result
+    status: 'SCHEDULED' | 'FINISHED' | 'IN_PROGRESS';
+    home_score: number | null;
+    away_score: number | null;
+    winner_id: string | null;
+
+    // Relationships (for joining in Supabase/hooks)
+    home_team: TeamData | null;
+    away_team: TeamData | null;
+}
+
+/**
+ * Defines the structure for a User's Prediction.
+ * This MUST match the data structure in your 'predictions' table.
+ */
+export interface Prediction {
+    id?: number; // Optional ID for upsert operations
+    match_id: number;
+    user_id: string;
+
+    // Group Stage Prediction (Scores)
+    home_score: number | null;
+    away_score: number | null;
+
+    // Knockout Prediction (Winner ID)
+    winner_id: string | null; 
+}
+
+
+// ===========================================
+// APPLICATION / UI STRUCTURES
+// ===========================================
+
+/**
+ * User data stored in your 'users' or 'profiles' table.
+ */
+export interface UserData {
     id: string;
-    name: string;
-    group_id: string;
-    fifa_ranking: number;
-    flag_emoji: string;
-  };
-};
+    email: string;
+    full_name: string;
+    reveal_tokens: number; // Used for "Peek at Rival"
+    // Add any other user fields here
+}
 
-export type Prediction = {
-  user_id: string;
-  match_id: number;
-  home_score: number | null;
-  away_score: number | null;
-  winner_id: string | null;
-  is_auto?: boolean;
-  orig_home_score?: number | null;
-  orig_away_score?: number | null;
-  orig_winner_id?: string | null;
-};
+/**
+ * Structure for the Leaderboard display.
+ */
+export interface LeaderboardEntry extends UserData {
+    total_points: number;
+    rank: number;
+    // ... add more stats if needed (perfect scores, etc.)
+}
 
-export type LeaderboardEntry = {
-  user_id: string;
-  display_name: string;
-  total_points: number;
-  group_points: number;
-  ko_points: number;
-  rank: number;
-};
+/**
+ * Structure containing all predictions from all users.
+ */
+export interface GlobalPredictions {
+    [userId: string]: {
+        full_name: string;
+        predictions: Record<number, Prediction>;
+    }
+}
 
-export type GlobalPredictions = Record<number, Record<string, Prediction>>;
+/**
+ * Structure defining how a bracket slot is resolved.
+ * Used by bracket.ts to connect matches/groups.
+ */
+export interface BracketMap {
+    [code: string]: { // Key is the placeholder (e.g., '1A', 'W1')
+        name: string;
+        sourceType: 'GROUP' | 'MATCH';
+        sourceId: string | number;
+        predictedTeamId: string | null; // The resolved team ID ('ARG', 'SCO')
+    };
+}
