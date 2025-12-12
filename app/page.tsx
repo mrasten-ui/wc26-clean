@@ -35,11 +35,11 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
 
 
 export default function Home() {
-  // 1. Load Data (Fixed the setMatches variable name)
+  // 1. Load Data (FIXED: Removed the non-existent 'setMatches' property)
   const { 
     user, 
     matches, 
-    setMatches, // <--- Assumed fix: This should be setMatches in your hook
+    // setMatches is omitted here to fix the Vercel build error
     predictions, 
     setPredictions, 
     allPredictions, 
@@ -69,7 +69,7 @@ export default function Home() {
     }
   }, []);
 
-  // 3. Handle Logic (Note: setActiveTab is now passed down correctly)
+  // 3. Handle Logic 
   const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
     supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
