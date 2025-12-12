@@ -82,52 +82,60 @@ export default function Login() {
         </div>
       )}
 
-      {/* MAIN CONTAINER: Forced max-width of 350px */}
-      <div className="w-full" style={{ maxWidth: '350px' }}>
+      {/* MAIN CONTAINER: Forced max-width of 320px (Tighter than 'sm') */}
+      <div className="w-full" style={{ maxWidth: '320px' }}>
         
-        {/* HEADER: OUTSIDE AND ABOVE THE CARD */}
-        <div className="text-center mb-6 cursor-pointer group" onClick={triggerVideo}>
+        {/* HEADER: OUTSIDE AND ABOVE THE CARD (TIGHTER SPACING) */}
+        <div className="text-center mb-4 cursor-pointer group" onClick={triggerVideo}>
+            {/* LOGO: Shrinks to w-20 (80px) */}
             <img 
                 src="/icon-192.png" 
                 alt="Logo" 
-                className="mx-auto mb-3 group-hover:scale-105 transition-transform drop-shadow-lg"
-                style={{ width: '100px', height: 'auto' }}
+                className="w-20 h-auto mx-auto mb-2 group-hover:scale-105 transition-transform drop-shadow-lg"
                 onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = '<span class="text-5xl">🏆</span>'; }} 
             />
-            <h1 className="text-xl font-black text-white uppercase tracking-tighter drop-shadow-md">{t.appName}</h1>
+            {/* TITLE: Shrinks to text-lg */}
+            <h1 className="text-lg font-black text-white uppercase tracking-tighter drop-shadow-md">{t.appName}</h1>
             <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mt-1 group-hover:text-yellow-400 transition-colors">{t.tapLogo}</p>
         </div>
 
-        {/* CARD: WHITE BOX */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-6 relative pt-12">
+        {/* CARD: WHITE BOX (TIGHTER PADDING, ROUNDED) */}
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden p-6 relative pt-10">
             
             {/* FLAGS: INSIDE CARD, CENTERED AT TOP */}
-            <div className="absolute top-3 left-0 right-0 flex justify-center space-x-2">
+            <div className="absolute top-3 left-0 right-0 flex justify-center space-x-1.5">
                 {(['en', 'no', 'us', 'sc'] as Language[]).map((l) => (
-                <button key={l} onClick={() => handleLangChange(l)} className={`transition-all rounded overflow-hidden shadow-sm hover:shadow-md ${lang === l ? 'ring-2 ring-yellow-400 scale-110' : 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100'}`}>
+                <button key={l} onClick={() => handleLangChange(l)} className={`transition-all rounded overflow-hidden shadow-sm hover:shadow-md ${lang === l ? 'ring-2 ring-yellow-400 scale-105' : 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100'}`}>
                     <img src={getFlagUrl(l)} alt={l} style={{ width: '28px', height: '18px', objectFit: 'cover' }} />
                 </button>
                 ))}
             </div>
 
-            {/* TOGGLE BUTTONS */}
-            <div className="flex bg-slate-100 p-1 rounded-lg mb-6 mt-2">
+            {/* TOGGLE BUTTONS (TIGHTER MARGINS) */}
+            <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
                 <button onClick={() => setIsSignUp(false)} className={`flex-1 py-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${!isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t.logIn}</button>
                 <button onClick={() => setIsSignUp(true)} className={`flex-1 py-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t.signUp}</button>
             </div>
 
-            {/* FORM */}
-            <form onSubmit={handleAuth} className="space-y-4">
-                {isSignUp && (<div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.fullName}</label><input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>)}
-                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.email}</label><input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.password}</label><input type="password" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <button disabled={loading} type="submit" className="w-full py-3.5 text-white text-xs font-black rounded-lg uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 disabled:opacity-50 mt-2" style={{backgroundColor: COLORS.navy}}>{loading ? t.processing : (isSignUp ? t.createAccount : t.enterArena)}</button>
+            {/* FORM (TIGHTER SPACING) */}
+            <form onSubmit={handleAuth} className="space-y-3">
+                {isSignUp && (<div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.fullName}</label><input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-all" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>)}
+                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.email}</label><input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-all" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.password}</label><input type="password" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-all" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                
+                <button 
+                    disabled={loading} 
+                    type="submit" 
+                    className="w-full py-3.5 text-white text-xs font-black rounded-lg uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 disabled:opacity-50 mt-2 shadow-lg" 
+                    style={{backgroundColor: COLORS.navy}} // Ensures the button matches the background navy: #154284
+                >
+                    {loading ? t.processing : (isSignUp ? t.createAccount : t.enterArena)}
+                </button>
             </form>
         </div>
       </div>
       
-      {/* COPYRIGHT FOOTER */}
-      <p className="mt-8 text-[9px] font-mono text-blue-300 opacity-50 uppercase tracking-widest">© Rasten Cup '26</p>
+      {/* COPYRIGHT FOOTER: REMOVED */}
     </div>
   );
 }
