@@ -151,11 +151,12 @@ export default function Header({
   };
 
   return (
-    <header className="sticky top-0 z-50 text-white shadow-xl transition-all duration-300" style={{ backgroundColor: COLORS.navy }}>
+    // FIX: Z-Index 100 to stay above everything else
+    <header className="sticky top-0 z-[100] text-white shadow-xl transition-all duration-300" style={{ backgroundColor: COLORS.navy }}>
       
       {showVideo && (
         <div 
-            className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
+            className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
             onClick={() => setShowVideo(false)}
         >
             <div 
@@ -285,9 +286,9 @@ export default function Header({
         </div>
       )}
 
-      {/* FIX: Moved Saved Banner to BOTTOM so it doesn't block the UI */}
+      {/* FIX: Moved Saved Banner to FIXED BOTTOM CENTER so it doesn't block the UI */}
       {visibleSaveStatus !== 'idle' && (
-        <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-sm font-bold border border-white/10 animate-in slide-in-from-bottom-4">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl z-[110] flex items-center gap-3 text-sm font-bold border border-white/10 animate-in slide-in-from-bottom-4">
            {visibleSaveStatus === 'saving' ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-400 text-lg">✓</span> Saved</>)}
         </div>
       )}
