@@ -30,7 +30,6 @@ const ScoreStepper = ({
     isWinner?: boolean 
 }) => {
     
-    // FIX: Robust check for null/undefined to initialize at 0 (value == null is correct)
     const handleUp = (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault(); 
@@ -49,20 +48,22 @@ const ScoreStepper = ({
     
     // Styles
     const containerClass = isActive 
-        ? "bg-[#0f2d5a] ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-white" 
+        ? "bg-white ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-slate-900" 
         : "bg-slate-100 border border-slate-200 text-slate-300 hover:border-slate-300";
         
-    const numberClass = isActive ? "scale-110 font-black text-cyan-50" : "font-medium";
+    const numberClass = isActive ? "scale-110 font-black" : "font-medium";
+    const buttonTextColor = isActive ? "text-slate-600 hover:text-blue-500" : "text-slate-400";
+    const buttonHoverBg = isActive ? "hover:bg-slate-100" : "hover:bg-slate-200";
 
     return (
         <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none overflow-hidden ${containerClass}`}>
             
             {/* UP BUTTON */}
             <button 
-                type="button" // FIX: Ensure it doesn't trigger form submission
+                type="button" 
                 onClick={handleUp}
                 className={`w-full h-[40%] flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer
-                    ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
+                    ${buttonTextColor} ${buttonHoverBg}
                 `}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -80,7 +81,7 @@ const ScoreStepper = ({
                 type="button"
                 onClick={handleDown}
                 className={`w-full h-[40%] flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer
-                    ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
+                    ${buttonTextColor} ${buttonHoverBg}
                 `}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -101,7 +102,7 @@ export default function GroupStage({
   const tableRef = useRef<HTMLDivElement>(null);
   const [showMiniTable, setShowMiniTable] = useState(false);
   
-  // --- 1. Calculate Standings ---
+  // --- 1. Calculate Standings (omitted for brevity) ---
   const standings = currentMatches.reduce((acc: any, m: any) => {
       const home = m.home_team;
       const away = m.away_team;
@@ -127,25 +128,32 @@ export default function GroupStage({
 
   const sortedStandings = Object.values(standings).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd);
 
-  // --- 2. Smart Predict Logic ---
+  // --- 2. Smart Predict Logic (Updated for maximum reliability) ---
   const smartPredict = (matchId: number, field: "home_score" | "away_score", val: number, currentPred: any) => {
+      
+      // 1. Immediately call handlePredict for the score the user just changed
       handlePredict(matchId, field, val);
-      // Init other score to 0 if null/undefined
+
+      // 2. Check the other field's state for the 0-0 initialization
       const otherField = field === "home_score" ? "away_score" : "home_score";
+      
+      // If the OTHER score is currently null/undefined, set it to 0 as well.
+      // We wrap this in a setTimeout of 0 to ensure the first update has time to process,
+      // preventing the second update from being lost if the hook is performing complex state merges.
       if (currentPred[otherField] == null) {
-          handlePredict(matchId, otherField, 0);
+          setTimeout(() => {
+              handlePredict(matchId, otherField, 0);
+          }, 0);
       }
   };
 
-  // --- 3. Scroll Detection for Mini Table ---
+  // --- 3. Scroll Detection for Mini Table (omitted for brevity) ---
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Show mini table when main table is NOT visible (scrolled past)
-        // Adjust the top offset (134px) to match the Header's height
         setShowMiniTable(!entry.isIntersecting);
       },
-      { threshold: 0.1 } // Trigger when 10% of the table is visible/hidden
+      { threshold: 0.1 }
     );
 
     if (tableRef.current) {
@@ -155,7 +163,7 @@ export default function GroupStage({
     return () => {
       if (tableRef.current) observer.unobserve(tableRef.current);
     };
-  }, [activeTab]); // Dependency on activeTab ensures observer restarts when group changes
+  }, [activeTab]); 
 
   return (
     <div className="flex flex-col gap-8 animate-in slide-in-from-right-4 duration-500 relative">
