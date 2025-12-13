@@ -19,7 +19,7 @@ interface GroupStageProps {
   getTeamName: (id: string, def: string) => string;
 }
 
-// --- COMPONENT: ROBUST NEON STEPPER ---
+// --- COMPONENT: ROBUST NEON STEPPER (Pure & Simple) ---
 const ScoreStepper = ({ 
     value, 
     onChange 
@@ -28,10 +28,11 @@ const ScoreStepper = ({
     onChange: (val: number) => void
 }) => {
     
-    // Direct State Logic
+    // Simple, collision-free handlers
     const handleUp = (e: React.MouseEvent) => {
         e.preventDefault(); 
         e.stopPropagation();
+        // If empty, start at 0. Otherwise increment.
         const current = (value === null || value === undefined) ? -1 : value;
         onChange(current + 1);
     };
@@ -39,6 +40,7 @@ const ScoreStepper = ({
     const handleDown = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        // If empty, start at 0. Otherwise decrement (min 0).
         const current = (value === null || value === undefined) ? 1 : value;
         if (current > 0) onChange(current - 1);
         else onChange(0);
@@ -46,7 +48,7 @@ const ScoreStepper = ({
 
     const isActive = value !== null && value !== undefined;
     
-    // Design: Flex Column (No Absolute Positioning bugs)
+    // VISUALS: Deep Navy for active, Light Grey for empty
     const containerClass = isActive 
         ? "bg-[#0f2d5a] ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-white" 
         : "bg-slate-100 border border-slate-200 text-slate-300 hover:border-slate-300";
@@ -55,31 +57,31 @@ const ScoreStepper = ({
     const btnClass = isActive ? "text-cyan-200 hover:bg-white/10" : "text-slate-400 hover:bg-slate-200";
 
     return (
-        <div className={`flex flex-col w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none z-10 relative overflow-hidden ${containerClass}`}>
+        <div className={`flex flex-col w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none relative overflow-hidden ${containerClass}`}>
             
-            {/* UP BUTTON */}
+            {/* UP BUTTON - Top Half */}
             <button 
                 type="button" 
                 onClick={handleUp}
-                className={`flex-1 w-full flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer ${btnClass}`}
+                className={`flex-1 w-full flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer z-20 ${btnClass}`}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 pointer-events-none">
                   <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 8.832 6.29 12.77a.75.75 0 11-1.08-1.04l4.25-4.5a.75.75 0 011.08 0l4.25 4.5a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
                 </svg>
             </button>
 
-            {/* SCORE DISPLAY */}
+            {/* SCORE DISPLAY - Middle */}
             <div className={`h-8 flex items-center justify-center text-3xl leading-none transition-transform duration-300 z-10 pointer-events-none ${numberClass}`}>
                 {value ?? '-'}
             </div>
 
-            {/* DOWN BUTTON */}
+            {/* DOWN BUTTON - Bottom Half */}
             <button 
                 type="button"
                 onClick={handleDown}
-                className={`flex-1 w-full flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer ${btnClass}`}
+                className={`flex-1 w-full flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer z-20 ${btnClass}`}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 pointer-events-none">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>
             </button>
@@ -122,21 +124,11 @@ export default function GroupStage({
 
   const sortedStandings = Object.values(standings).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd);
 
-  // --- 2. Smart Predict Logic ---
-  const smartPredict = (matchId: number, field: "home_score" | "away_score", val: number, currentPred: any) => {
-      handlePredict(matchId, field, val);
-      // Init other score to 0 if null
-      const otherField = field === "home_score" ? "away_score" : "home_score";
-      if (currentPred[otherField] == null) {
-          handlePredict(matchId, otherField, 0);
-      }
-  };
-
-  // --- 3. Scroll Detection for Mini Table ---
+  // --- 2. Scroll Detection for Mini Table ---
   useEffect(() => {
     const handleScroll = () => {
-        // Show mini table after scrolling past 200px
-        if (window.scrollY > 200) {
+        // Simple logic: If scrolled past 300px, show table
+        if (window.scrollY > 300) {
             setShowMiniTable(true);
         } else {
             setShowMiniTable(false);
@@ -151,10 +143,15 @@ export default function GroupStage({
     <div className="flex flex-col gap-8 animate-in slide-in-from-right-4 duration-500 relative">
       
       {/* --- FLOATING MINI TABLE (Sticky) --- */}
-      {/* FIX: Z-Index 40 (Below Header z-50), Top Adjusted to slide OUT from header */}
-      <div className={`fixed top-[134px] left-0 right-0 z-40 transition-all duration-500 ease-in-out transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}>
+      {/* z-40 puts it UNDER the Header (z-50). top-[134px] aligns it below the header tabs. */}
+      <div 
+        className={`fixed top-[134px] left-0 right-0 z-40 transition-all duration-300 ease-in-out transform ${
+            showMiniTable ? 'translate-y-0 opacity-100 shadow-xl' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         <div className="max-w-xl mx-auto px-4">
-             <div className="bg-[#154284] shadow-2xl border-t border-white/10 text-white rounded-b-2xl px-4 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar ring-1 ring-white/10">
+             {/* The table itself */}
+             <div className="bg-[#154284] border-t border-white/10 text-white rounded-b-xl px-4 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar ring-1 ring-white/10">
                 {sortedStandings.map((team: any, i: number) => (
                     <div key={team.id} className={`flex flex-col items-center justify-center min-w-[3rem] gap-1 ${i < 2 ? 'opacity-100' : 'opacity-50'}`}>
                         <div className="flex items-center gap-1">
@@ -211,7 +208,7 @@ export default function GroupStage({
       </div>
       
       {/* --- MATCHES LIST --- */}
-      <div className="space-y-4 pb-20">
+      <div className="space-y-4 pb-20 mt-4">
         {currentMatches.map((m: any) => {
             const pred = predictions[m.id] || {};
             const hasScore = pred.home_score != null;
@@ -241,12 +238,11 @@ export default function GroupStage({
                             </div>
                         </div>
 
-                        {/* THE NEON OBELISKS */}
+                        {/* THE NEON OBELISKS - DIRECT CONNECTION */}
                         <div className="flex items-center gap-3 sm:gap-6 shrink-0 z-10">
-                            {/* Updated to simple handlePredict to avoid conflicts */}
                             <ScoreStepper 
                                 value={pred.home_score} 
-                                onChange={(val) => smartPredict(m.id, 'home_score', val, pred)}
+                                onChange={(val) => handlePredict(m.id, 'home_score', val)}
                             />
                             
                             {/* VS Badge */}
@@ -256,7 +252,7 @@ export default function GroupStage({
                             
                             <ScoreStepper 
                                 value={pred.away_score} 
-                                onChange={(val) => smartPredict(m.id, 'away_score', val, pred)}
+                                onChange={(val) => handlePredict(m.id, 'away_score', val)}
                             />
                         </div>
 
