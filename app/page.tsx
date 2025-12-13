@@ -1,6 +1,6 @@
 "use client";
-import { useState, Suspense, useEffect, useMemo } from "react"; // Added useMemo
-import { createClient } from "@supabase/supabase-js"; // Imported createClient
+import { useState, Suspense, useEffect, useMemo, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useAppData } from "../hooks/useAppData";
 import { usePrediction } from "../hooks/usePrediction";
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator";
@@ -19,11 +19,8 @@ import AutoFillModal from "../components/AutoFillModal";
 import RulesModal from "../components/RulesModal";
 
 // --- CLIENT SETUP: Safely Initialize Supabase Client ---
-// This client is shared globally by the module scope.
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// The client instance is created here
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // --- END CLIENT SETUP ---
 
@@ -50,7 +47,7 @@ type StatusType = "empty" | "partial" | "complete";
 export default function Home() {
   // Use the globally scoped client instance
   const supabase = supabaseClient;
-
+  
   // 1. Load Data
   const { 
     user, 
@@ -65,7 +62,7 @@ export default function Home() {
     revealCount, 
     setRevealCount, 
     loading, 
-  } = useAppData(); // Assuming useAppData now imports/uses the client itself or gets it via context
+  } = useAppData(); 
 
   
   // 2. UI State
@@ -75,6 +72,10 @@ export default function Home() {
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
   const [lang, setLang] = useState<'en' | 'no' | 'us' | 'sc'>('en');
   const [showNicknames, setShowNicknames] = useState(false);
+
+  // 🔥 NEW STATE FOR FORCE RERENDER
+  const [predictionsKey, setPredictionsKey] = useState(0); 
+
   
   // Load language preference from Local Storage on mount
   useEffect(() => {
@@ -85,9 +86,17 @@ export default function Home() {
   }, []);
 
   // 3. Handle Logic 
-  const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
+  const { handlePredict: baseHandlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
     supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
+  
+  // 🔥 WRAPPER FUNCTION TO FORCE RERENDER
+  const handlePredict = useCallback((matchId: number, field: "home_score" | "away_score" | "winner_id", value: any) => {
+      baseHandlePredict(matchId, field, value);
+      // Increment key to force GroupStage component to re-render
+      setPredictionsKey(prev => prev + 1);
+  }, [baseHandlePredict]);
+
 
   const t = TRANSLATIONS[lang];
   const currentMainTab = (activeTab === "KNOCKOUT" || KNOCKOUT_STAGES.includes(activeTab)) ? "KNOCKOUT" : (activeTab === "RULES" ? "RULES" : (activeTab === "RESULTS" ? "RESULTS" : (activeTab === "MATCHES" ? "MATCHES" : "GROUPS")));
@@ -230,6 +239,8 @@ export default function Home() {
         {/* GROUP STAGE VIEW */}
         {currentMainTab === "GROUPS" && activeTab !== "SUMMARY" && activeTab !== "RULES" && activeTab !== "RESULTS" && activeTab !== "MATCHES" && (
              <GroupStage 
+                // 🔥 CRITICAL FIX: Add key to force component rebuild on state change
+                key={`${activeTab}-${predictionsKey}`} 
                 getTeamName={getTeamNameForComponent}
                 activeTab={activeTab} 
                 setActiveTab={setActiveTab}
