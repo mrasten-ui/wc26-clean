@@ -33,6 +33,8 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
     return teamMap[def] || def;
 };
 
+// Define the Status Type for clarity
+type StatusType = "empty" | "partial" | "complete";
 
 export default function Home() {
   // 1. Load Data
@@ -98,7 +100,6 @@ export default function Home() {
   const isTournamentComplete = totalMatches > 0 && predictedCount === totalMatches;
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
 
-  // 🔥 CRITICAL FIX: Define hasPredictions here
   const hasGroupData = allValidMatches.some(m => m.stage === 'GROUP' && typeof predictions[m.id]?.home_score === 'number');
   const hasKnockoutData = allValidMatches.some(m => m.stage !== 'GROUP' && !!predictions[m.id]?.winner_id);
   const hasPredictions = hasGroupData || hasKnockoutData;
@@ -115,13 +116,31 @@ export default function Home() {
   const getTeamNameForComponent = (id: string, def: string) => getTeamName(id, def, lang, showNicknames);
 
   // 5. Helper Functions
-  const getGroupStatus = (gid: string) => { const ms = matchesByGroup[gid] || []; return ms.every(m => predictions[m.id]?.home_score !== null) ? 'complete' : ms.some(m => predictions[m.id]?.home_score !== null) ? 'partial' : 'empty'; };
-  const getMainTabStatus = (tab: "GROUPS" | "KNOCKOUT") => {
+  const getGroupStatus = (gid: string): StatusType => { 
+      const ms = matchesByGroup[gid] || []; 
+      if (ms.length === 0) return 'empty';
+      if (ms.every(m => predictions[m.id]?.home_score !== null)) return 'complete';
+      if (ms.some(m => predictions[m.id]?.home_score !== null)) return 'partial';
+      return 'empty';
+  };
+  
+  const getMainTabStatus = (tab: "GROUPS" | "KNOCKOUT"): StatusType => {
     if (loading || matches.length === 0) return 'empty';
     if (tab === "GROUPS") return isTournamentComplete ? 'complete' : (predictedCount > 0 ? 'partial' : 'empty');
-    return isTournamentComplete ? (Object.values(predictions).filter(p => p.winner_id && p.match_id > 72).length === 32 ? 'complete' : 'partial') : 'empty';
+    
+    // Simplified logic for Knockout status
+    const knockoutPicks = Object.values(predictions).filter(p => p.winner_id && p.match_id > 72).length;
+    if (knockoutPicks === 32) return 'complete';
+    if (knockoutPicks > 0) return 'partial';
+    return 'empty';
   };
-  const getKnockoutStatus = (stage: string) => { return 'partial'; };
+  
+  // 🔥 CRITICAL FIX: Explicitly set the return type to StatusType
+  const getKnockoutStatus = (stage: string): StatusType => { 
+      // This is a placeholder that now correctly returns a literal StatusType
+      // You can implement the detailed logic later.
+      return 'partial'; 
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
