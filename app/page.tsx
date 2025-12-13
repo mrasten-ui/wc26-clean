@@ -3,13 +3,12 @@ import { useState, Suspense, useEffect } from "react";
 import { useAppData } from "../hooks/useAppData";
 import { usePrediction } from "../hooks/usePrediction";
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator";
-// import { calculateBracketMapping } from "../lib/bracket"; // <-- Not used due to fix below
+// import { calculateBracketMapping } from "../lib/bracket"; 
 import { getFlagUrl } from "../lib/flags";
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants";
 import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
 
 // Components
-// CRITICAL FIX: Must be a default import
 import Header from "../components/Header"; 
 import Leaderboard from "../components/Leaderboard";
 import Bracket from "../components/Bracket";
@@ -145,9 +144,16 @@ export default function Home() {
   };
   
   const handleClearPredictions = async () => { 
+    // 🔥 CRITICAL FIX: Add null check for user
+    if (!user || !user.id) {
+        alert("Cannot clear predictions: User not logged in.");
+        return; 
+    }
+    
     if (confirm("Are you sure you want to clear ALL your predictions?")) {
       // Logic to delete all user predictions from Supabase and clear local state
       const { error } = await supabase.from('predictions').delete().eq('user_id', user.id);
+      
       if (!error) {
         setPredictions({});
         alert("All predictions cleared.");
