@@ -28,7 +28,6 @@ const ScoreStepper = ({
     onChange: (val: number) => void
 }) => {
     
-    // Explicit click handlers to prevent bubbling issues
     const handleUp = (e: React.MouseEvent) => {
         e.preventDefault(); 
         e.stopPropagation();
@@ -56,13 +55,13 @@ const ScoreStepper = ({
     const numberClass = isActive ? "scale-110 font-black text-cyan-50" : "font-medium";
 
     return (
-        <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none z-30 relative ${containerClass}`}>
+        <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none z-30 relative overflow-hidden ${containerClass}`}>
             
-            {/* UP BUTTON */}
+            {/* UP BUTTON - COVERS TOP 50% */}
             <button 
                 type="button" 
                 onClick={handleUp}
-                className={`w-full h-[40%] flex items-center justify-center rounded-t-2xl transition-colors active:bg-white/20 touch-manipulation cursor-pointer z-40
+                className={`absolute top-0 left-0 right-0 h-1/2 flex items-start pt-2 justify-center transition-colors active:bg-white/20 touch-manipulation cursor-pointer z-40
                     ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
                 `}
             >
@@ -71,16 +70,16 @@ const ScoreStepper = ({
                 </svg>
             </button>
 
-            {/* SCORE DISPLAY */}
-            <div className={`h-[20%] flex items-center justify-center text-3xl leading-none transition-transform duration-300 z-10 pointer-events-none ${numberClass}`}>
+            {/* SCORE DISPLAY - CENTERED */}
+            <div className={`absolute inset-0 flex items-center justify-center text-3xl leading-none transition-transform duration-300 z-10 pointer-events-none ${numberClass}`}>
                 {value ?? '-'}
             </div>
 
-            {/* DOWN BUTTON */}
+            {/* DOWN BUTTON - COVERS BOTTOM 50% */}
             <button 
                 type="button"
                 onClick={handleDown}
-                className={`w-full h-[40%] flex items-center justify-center rounded-b-2xl transition-colors active:bg-white/20 touch-manipulation cursor-pointer z-40
+                className={`absolute bottom-0 left-0 right-0 h-1/2 flex items-end pb-2 justify-center transition-colors active:bg-white/20 touch-manipulation cursor-pointer z-40
                     ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
                 `}
             >
@@ -127,21 +126,11 @@ export default function GroupStage({
 
   const sortedStandings = Object.values(standings).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd);
 
-  // --- 2. Smart Predict Logic ---
-  const smartPredict = (matchId: number, field: "home_score" | "away_score", val: number, currentPred: any) => {
-      handlePredict(matchId, field, val);
-      // Init other score to 0 if null
-      const otherField = field === "home_score" ? "away_score" : "home_score";
-      if (currentPred[otherField] == null) {
-          handlePredict(matchId, otherField, 0);
-      }
-  };
-
-  // --- 3. Robust Scroll Detection for Mini Table ---
+  // --- 2. Reliable Scroll Detection for Mini Table ---
   useEffect(() => {
     const handleScroll = () => {
-        // Show mini table after scrolling past the main header area (approx 450px)
-        if (window.scrollY > 450) {
+        // Show mini table after scrolling past 100px
+        if (window.scrollY > 100) {
             setShowMiniTable(true);
         } else {
             setShowMiniTable(false);
@@ -156,7 +145,8 @@ export default function GroupStage({
     <div className="flex flex-col gap-8 animate-in slide-in-from-right-4 duration-500 relative">
       
       {/* --- FLOATING MINI TABLE (Sticky) --- */}
-      <div className={`fixed top-[134px] left-0 right-0 z-50 transition-all duration-500 ease-in-out transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}>
+      {/* Z-Index 60 to appear ABOVE the header if needed, or matched high */}
+      <div className={`fixed top-[134px] left-0 right-0 z-[60] transition-all duration-500 ease-in-out transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}>
         <div className="max-w-xl mx-auto px-4">
              <div className="bg-[#154284] shadow-2xl border-t border-white/10 text-white rounded-b-2xl px-4 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar ring-1 ring-white/10">
                 {sortedStandings.map((team: any, i: number) => (
@@ -196,7 +186,7 @@ export default function GroupStage({
                     <img src={getFlagUrl(team.id)} alt={team.name} className="w-6 h-4 rounded shadow-sm object-cover" />
                     <div className="flex flex-col leading-none">
                         <span className="font-bold text-slate-800">{getTeamName(team.id, team.name)}</span>
-                        {/* FIX: Only show ranking if it exists */}
+                        {/* FIX: Only show rank if it exists */}
                         {team.fifa_ranking ? (
                             <span className="text-[9px] text-slate-400 font-medium">#{team.fifa_ranking}</span>
                         ) : null}
@@ -247,9 +237,10 @@ export default function GroupStage({
 
                         {/* THE NEON OBELISKS */}
                         <div className="flex items-center gap-3 sm:gap-6 shrink-0 z-10">
+                            {/* Updated to simple handlePredict to avoid conflicts */}
                             <ScoreStepper 
                                 value={pred.home_score} 
-                                onChange={(val) => smartPredict(m.id, 'home_score', val, pred)}
+                                onChange={(val) => handlePredict(m.id, 'home_score', val)}
                             />
                             
                             {/* VS Badge */}
@@ -259,7 +250,7 @@ export default function GroupStage({
                             
                             <ScoreStepper 
                                 value={pred.away_score} 
-                                onChange={(val) => smartPredict(m.id, 'away_score', val, pred)}
+                                onChange={(val) => handlePredict(m.id, 'away_score', val)}
                             />
                         </div>
 
