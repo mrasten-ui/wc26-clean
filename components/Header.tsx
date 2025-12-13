@@ -1,43 +1,22 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { COLORS, GROUPS, KNOCKOUT_STAGES, STAGE_COLORS } from "../lib/constants";
 import ProgressRing from "./ProgressRing";
 
-// Define the HeaderProps interface clearly
 interface HeaderProps {
-    user: any; 
-    activeTab: string; 
-    setActiveTab: (tab: string) => void;
-    activeKnockoutRound: string; 
-    setActiveKnockoutRound: (round: string) => void;
-    currentMainTab: "MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS";
-    
-    // Corrected type definition
-    saveStatus: 'idle' | 'saving' | 'saved'; 
-    
-    revealCount: number; 
-    isGenerating: boolean;
-    handleGroupAutoFill: () => void; 
-    handleKnockoutAutoFill: () => void;
-    handleClearPredictions: () => void; 
-    hasPredictions: boolean;
-    isTournamentComplete: boolean; 
-    handleLogout: () => void;
-    lang: 'en' | 'no' | 'us' | 'sc'; 
-    setLang: (lang: 'en' | 'no' | 'us' | 'sc') => void;
-    t: any; 
-    getMainTabStatus: any; 
-    getGroupStatus: any; 
-    getKnockoutStatus: (stage: string) => 'empty' | 'partial' | 'complete';
-    
-    // Final fix: The missing prop 'onOpenRules'
-    onOpenRules: () => void;
-    
-    predictions?: any; 
-    totalMatchesCount?: number; 
-    matchesCompletedCount?: number;
-    showNicknames: boolean; 
-    setShowNicknames: (show: boolean) => void;
+  user: any; activeTab: string; setActiveTab: (tab: string) => void;
+  activeKnockoutRound: string; setActiveKnockoutRound: (round: string) => void;
+  currentMainTab: "MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS";
+  saveStatus: 'idle' | 'saving' | 'saved'; 
+  revealCount: number; isGenerating: boolean;
+  handleGroupAutoFill: () => void; handleKnockoutAutoFill: () => void;
+  handleClearPredictions: () => void; hasPredictions: boolean;
+  isTournamentComplete: boolean; handleLogout: () => void;
+  lang: 'en' | 'no' | 'us' | 'sc'; setLang: (lang: 'en' | 'no' | 'us' | 'sc') => void;
+  t: any; getMainTabStatus: any; getGroupStatus: any; getKnockoutStatus: (stage: string) => 'empty' | 'partial' | 'complete';
+  onOpenRules: () => void;
+  predictions?: any; totalMatchesCount?: number; matchesCompletedCount?: number;
+  showNicknames: boolean; setShowNicknames: (show: boolean) => void;
 }
 
 const getRoundShortName = (stage: string) => {
@@ -99,7 +78,6 @@ const WandIcon = () => (
   </svg>
 );
 
-// CRITICAL FIX: Ensure this is the default export
 export default function Header({
   user, activeTab, setActiveTab, activeKnockoutRound, setActiveKnockoutRound, 
   currentMainTab, saveStatus, revealCount, isGenerating, 
@@ -113,6 +91,18 @@ export default function Header({
   const [showVideo, setShowVideo] = useState(false);
   const [hasPlayedVideo, setHasPlayedVideo] = useState<Record<string, boolean>>({}); 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [visibleSaveStatus, setVisibleSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // Fix stuck "Saved" button
+  useEffect(() => {
+    setVisibleSaveStatus(saveStatus);
+    if (saveStatus === 'saved') {
+      const timer = setTimeout(() => {
+        setVisibleSaveStatus('idle');
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [saveStatus]);
 
   const predictionCount = Object.values(predictions).filter((p: any) => {
       if (p.home_score !== null && p.away_score !== null) return true;
@@ -195,22 +185,22 @@ export default function Header({
       {isMenuOpen && <div className="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px]" onClick={() => setIsMenuOpen(false)} />}
 
       <div className="px-4 py-4 flex items-center justify-between relative h-[88px]">
-        <div className="flex flex-col gap-2 z-20">
-           <div className="flex items-center gap-1.5 bg-black/20 p-1 rounded-lg backdrop-blur-sm border border-white/5">
-                <button onClick={() => handleLangSelect('en')} className={`p-1.5 rounded transition-all ${lang === 'en' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="English"><UKFlag className="w-6 h-4" /></button>
-                <button onClick={() => handleLangSelect('no')} className={`p-1.5 rounded transition-all ${lang === 'no' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="Norsk"><NorwayFlag className="w-6 h-4" /></button>
-                <button onClick={() => handleLangSelect('us')} className={`p-1.5 rounded transition-all ${lang === 'us' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="American"><USFlag className="w-6 h-4" /></button>
-                <button onClick={() => handleLangSelect('sc')} className={`p-1.5 rounded transition-all ${lang === 'sc' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="Scottish"><ScottishFlag className="w-6 h-4" /></button>
-           </div>
+        {/* FIX 1: Better flag positioning */}
+        <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 bg-black/20 p-1 rounded-lg backdrop-blur-sm border border-white/5">
+            <button onClick={() => handleLangSelect('en')} className={`p-1.5 rounded transition-all ${lang === 'en' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="English"><UKFlag className="w-6 h-4" /></button>
+            <button onClick={() => handleLangSelect('no')} className={`p-1.5 rounded transition-all ${lang === 'no' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="Norsk"><NorwayFlag className="w-6 h-4" /></button>
+            <button onClick={() => handleLangSelect('us')} className={`p-1.5 rounded transition-all ${lang === 'us' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="American"><USFlag className="w-6 h-4" /></button>
+            <button onClick={() => handleLangSelect('sc')} className={`p-1.5 rounded transition-all ${lang === 'sc' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="Scottish"><ScottishFlag className="w-6 h-4" /></button>
         </div>
+        
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
            <button onClick={triggerVideo} className="pointer-events-auto active:scale-95 transition-transform duration-100 flex flex-col items-center group">
                <img src="/logo_r.png" alt="The Rasten Cup '26 Logo" className="h-16 w-auto object-contain drop-shadow-md mt-1 group-hover:brightness-110" />
                <h1 className="text-lg font-black tracking-tighter uppercase leading-none text-center text-blue-100/90 drop-shadow-sm mt-0.5">The Rasten Cup '26</h1>
            </button>
         </div>
-        <div className="w-20 flex justify-end z-20">
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 -mr-2 text-white hover:bg-white/10 rounded-full transition-colors relative">
+        <div className="w-full flex justify-end z-20 pointer-events-none">
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="pointer-events-auto p-2 text-white hover:bg-white/10 rounded-full transition-colors relative">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
           </button>
         </div>
@@ -251,7 +241,8 @@ export default function Header({
              </div>
           )}
           {GROUPS.map((group) => (
-            <button key={group} onClick={() => setActiveTab(group)} className={`flex-shrink-0 w-10 h-10 rounded-lg flex flex-col items-center justify-center text-sm font-black transition-all relative overflow-hidden ${activeTab === group ? "bg-white text-slate-900 scale-105 shadow-lg" : "bg-white/10 text-slate-300 hover:bg-white/20"}`}>
+            // FIX 3: Removed overflow-hidden and adjusted colors to ensure letters A, B, C are visible
+            <button key={group} onClick={() => setActiveTab(group)} className={`flex-shrink-0 w-10 h-10 rounded-lg flex flex-col items-center justify-center text-sm font-black transition-all relative ${activeTab === group ? "bg-white text-slate-900 scale-105 shadow-lg" : "bg-white/10 text-white hover:bg-white/20"}`}>
               <span className="relative z-10">{group}</span>
               {activeTab === group && <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: STAGE_COLORS[group] || '#ccc', boxShadow: `0 0 8px ${STAGE_COLORS[group]}` }} />}
               <span className={`w-1.5 h-1.5 rounded-full mt-0.5 relative z-10 ${getSubTabStatusDot(group)}`} />
@@ -271,23 +262,24 @@ export default function Header({
              </div>
           )}
           {KNOCKOUT_STAGES.map((stage) => (
-            <button key={stage} onClick={() => setActiveKnockoutRound(stage)} className={`flex-shrink-0 px-4 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-black transition-all relative overflow-hidden ${activeKnockoutRound === stage ? "bg-white text-slate-900 scale-105 shadow-lg" : "bg-white/10 text-slate-300 hover:bg-white/20"}`}>
+            <button key={stage} onClick={() => setActiveKnockoutRound(stage)} className={`flex-shrink-0 px-4 h-10 rounded-lg flex flex-col items-center justify-center text-xs font-black transition-all relative ${activeKnockoutRound === stage ? "bg-white text-slate-900 scale-105 shadow-lg" : "bg-white/10 text-white hover:bg-white/20"}`}>
               <span className="relative z-10">{getRoundShortName(stage)}</span>
               {activeKnockoutRound === stage && <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: STAGE_COLORS[stage] || '#ccc', boxShadow: `0 0 8px ${STAGE_COLORS[stage]}` }} />}
               <span className={`w-1.5 h-1.5 rounded-full mt-0.5 relative z-10 ${getKnockoutDot(stage)}`} />
             </button>
           ))}
           <div className="w-px h-6 bg-white/20 mx-1" />
-          <button onClick={() => setActiveKnockoutRound("TREE")} className={`flex-shrink-0 px-3 h-10 rounded-lg flex items-center justify-center text-[10px] font-black uppercase tracking-wider transition-all relative overflow-hidden ${activeKnockoutRound === "TREE" ? "bg-purple-500 text-white shadow-lg" : "bg-white/10 text-slate-300 hover:bg-white/20"}`}>
+          <button onClick={() => setActiveKnockoutRound("TREE")} className={`flex-shrink-0 px-3 h-10 rounded-lg flex items-center justify-center text-[10px] font-black uppercase tracking-wider transition-all relative ${activeKnockoutRound === "TREE" ? "bg-purple-500 text-white shadow-lg" : "bg-white/10 text-slate-300 hover:bg-white/20"}`}>
               <span className="relative z-10">🌳 Tree</span>
               {activeKnockoutRound === "TREE" && <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: STAGE_COLORS["TREE"], boxShadow: `0 0 8px ${STAGE_COLORS["TREE"]}` }} />}
           </button>
         </div>
       )}
 
-      {saveStatus && (
+      {/* FIX 2: Use visibleSaveStatus to allow the button to disappear */}
+      {visibleSaveStatus !== 'idle' && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur text-slate-900 px-4 py-1.5 rounded-full shadow-xl z-50 flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-4">
-           {saveStatus === 'saving' ? (<><div className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-600">✓</span> Saved</>)}
+           {visibleSaveStatus === 'saving' ? (<><div className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-600">✓</span> Saved</>)}
         </div>
       )}
     </header>
