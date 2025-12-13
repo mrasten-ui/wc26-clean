@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { getFlagUrl } from "../lib/flags";
 
 interface GroupStageProps {
@@ -22,30 +22,31 @@ interface GroupStageProps {
 // --- COMPONENT: THE NEON OBELISK STEPPER ---
 const ScoreStepper = ({ 
     value, 
-    onChange, 
-    isWinner 
+    onChange 
 }: { 
     value: number | null | undefined, 
-    onChange: (val: number) => void,
-    isWinner?: boolean 
+    onChange: (val: number) => void
 }) => {
     
-    // 🔥 FIX: Aggressive Event Handling
-    const handleUp = (e: any) => {
+    // Explicit click handlers to prevent bubbling issues
+    const handleUp = (e: React.MouseEvent) => {
         e.preventDefault(); 
         e.stopPropagation();
-        if (value == null) onChange(0);
-        else onChange(value + 1);
+        // If null/undefined, start at 0. Otherwise +1
+        const current = (value === null || value === undefined) ? -1 : value;
+        onChange(current + 1);
     };
 
-    const handleDown = (e: any) => {
+    const handleDown = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (value == null) onChange(0);
-        else if (value > 0) onChange(value - 1);
+        // If null/undefined, start at 0. Otherwise -1 (min 0)
+        const current = (value === null || value === undefined) ? 1 : value;
+        if (current > 0) onChange(current - 1);
+        else onChange(0);
     };
 
-    const isActive = value != null;
+    const isActive = value !== null && value !== undefined;
     
     // Styles
     const containerClass = isActive 
@@ -55,23 +56,23 @@ const ScoreStepper = ({
     const numberClass = isActive ? "scale-110 font-black text-cyan-50" : "font-medium";
 
     return (
-        <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none ${containerClass}`}>
+        <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none z-30 relative ${containerClass}`}>
             
             {/* UP BUTTON */}
             <button 
                 type="button" 
                 onClick={handleUp}
-                className={`w-full h-full flex-1 flex items-center justify-center rounded-t-2xl transition-colors active:scale-95 touch-manipulation cursor-pointer z-20
+                className={`w-full h-[40%] flex items-center justify-center rounded-t-2xl transition-colors active:bg-white/20 touch-manipulation cursor-pointer z-40
                     ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
                 `}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 pointer-events-none">
                   <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 8.832 6.29 12.77a.75.75 0 11-1.08-1.04l4.25-4.5a.75.75 0 011.08 0l4.25 4.5a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
                 </svg>
             </button>
 
             {/* SCORE DISPLAY */}
-            <div className={`flex-shrink-0 h-8 flex items-center justify-center text-3xl leading-none transition-transform duration-300 pointer-events-none z-10 ${numberClass}`}>
+            <div className={`h-[20%] flex items-center justify-center text-3xl leading-none transition-transform duration-300 z-10 pointer-events-none ${numberClass}`}>
                 {value ?? '-'}
             </div>
 
@@ -79,11 +80,11 @@ const ScoreStepper = ({
             <button 
                 type="button"
                 onClick={handleDown}
-                className={`w-full h-full flex-1 flex items-center justify-center rounded-b-2xl transition-colors active:scale-95 touch-manipulation cursor-pointer z-20
+                className={`w-full h-[40%] flex items-center justify-center rounded-b-2xl transition-colors active:bg-white/20 touch-manipulation cursor-pointer z-40
                     ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
                 `}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 pointer-events-none">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>
             </button>
@@ -98,7 +99,6 @@ export default function GroupStage({
 }: GroupStageProps) {
   
   const currentMatches = matchesByGroup[activeTab] || [];
-  const sentinelRef = useRef<HTMLDivElement>(null); // 🔥 FIX: Using a sentinel line
   const [showMiniTable, setShowMiniTable] = useState(false);
   
   // --- 1. Calculate Standings ---
@@ -130,50 +130,42 @@ export default function GroupStage({
   // --- 2. Smart Predict Logic ---
   const smartPredict = (matchId: number, field: "home_score" | "away_score", val: number, currentPred: any) => {
       handlePredict(matchId, field, val);
+      // Init other score to 0 if null
       const otherField = field === "home_score" ? "away_score" : "home_score";
       if (currentPred[otherField] == null) {
           handlePredict(matchId, otherField, 0);
       }
   };
 
-  // --- 3. Scroll Detection for Mini Table ---
+  // --- 3. Robust Scroll Detection for Mini Table ---
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Show mini table when sentinel (bottom of main table) scrolls UP out of view (or nearly)
-        // Adjust logic: If sentinel is NOT intersecting and its top is ABOVE viewport, we are scrolled past.
-        // Simplified: If sentinel is off screen, show mini table.
-        if (!entry.isIntersecting && entry.boundingClientRect.top < 150) {
+    const handleScroll = () => {
+        // Show mini table after scrolling past the main header area (approx 450px)
+        if (window.scrollY > 450) {
             setShowMiniTable(true);
         } else {
             setShowMiniTable(false);
         }
-      },
-      { rootMargin: "-140px 0px 0px 0px" } // Offset for the header height
-    );
-
-    if (sentinelRef.current) {
-      observer.observe(sentinelRef.current);
-    }
-
-    return () => {
-      if (sentinelRef.current) observer.unobserve(sentinelRef.current);
     };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <div className="flex flex-col gap-8 animate-in slide-in-from-right-4 duration-500 relative">
       
       {/* --- FLOATING MINI TABLE (Sticky) --- */}
-      {/* Top position calculated: Header (88px) + Tabs (48px) approx 136px */}
-      <div className={`fixed top-[136px] left-0 right-0 z-40 transition-all duration-300 transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
+      <div className={`fixed top-[134px] left-0 right-0 z-50 transition-all duration-500 ease-in-out transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'}`}>
         <div className="max-w-xl mx-auto px-4">
-             <div className="bg-[#154284]/95 backdrop-blur-md shadow-xl border-t border-white/10 text-white rounded-b-xl px-4 py-2 flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
+             <div className="bg-[#154284] shadow-2xl border-t border-white/10 text-white rounded-b-2xl px-4 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar ring-1 ring-white/10">
                 {sortedStandings.map((team: any, i: number) => (
-                    <div key={team.id} className={`flex items-center gap-2 shrink-0 ${i < 2 ? 'opacity-100' : 'opacity-60'}`}>
-                        <span className={`text-[10px] font-black w-4 ${i < 2 ? 'text-green-400' : 'text-slate-400'}`}>#{i+1}</span>
-                        <img src={getFlagUrl(team.id)} alt={team.id} className="w-5 h-3.5 rounded shadow-sm" />
-                        <span className="text-xs font-bold">{team.pts}<span className="text-[9px] font-normal opacity-70">pts</span></span>
+                    <div key={team.id} className={`flex flex-col items-center justify-center min-w-[3rem] gap-1 ${i < 2 ? 'opacity-100' : 'opacity-50'}`}>
+                        <div className="flex items-center gap-1">
+                            <span className={`text-[10px] font-black ${i < 2 ? 'text-green-400' : 'text-slate-400'}`}>{i+1}</span>
+                            <img src={getFlagUrl(team.id)} alt={team.id} className="w-5 h-3.5 rounded shadow-sm" />
+                        </div>
+                        <span className="text-xs font-bold leading-none">{team.pts}</span>
                     </div>
                 ))}
              </div>
@@ -204,9 +196,10 @@ export default function GroupStage({
                     <img src={getFlagUrl(team.id)} alt={team.name} className="w-6 h-4 rounded shadow-sm object-cover" />
                     <div className="flex flex-col leading-none">
                         <span className="font-bold text-slate-800">{getTeamName(team.id, team.name)}</span>
-                        {team.fifa_ranking && (
+                        {/* FIX: Only show ranking if it exists */}
+                        {team.fifa_ranking ? (
                             <span className="text-[9px] text-slate-400 font-medium">#{team.fifa_ranking}</span>
-                        )}
+                        ) : null}
                     </div>
                   </div>
                 </td>
@@ -221,9 +214,6 @@ export default function GroupStage({
         </table>
       </div>
       
-      {/* --- SENTINEL FOR SCROLL DETECTION --- */}
-      <div ref={sentinelRef} className="h-px w-full -mt-4 opacity-0 pointer-events-none" />
-
       {/* --- MATCHES LIST --- */}
       <div className="space-y-4 pb-20">
         {currentMatches.map((m: any) => {
@@ -251,7 +241,7 @@ export default function GroupStage({
                             </div>
                             <div className="relative order-1 sm:order-1 shrink-0">
                                 <img src={getFlagUrl(m.home_team.id)} className="w-12 h-8 sm:w-16 sm:h-10 rounded shadow-md object-cover ring-1 ring-slate-100" alt={m.home_team.name} />
-                                <span className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 bg-slate-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">#{m.home_team.fifa_ranking || '-'}</span>
+                                {m.home_team.fifa_ranking && <span className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 bg-slate-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">#{m.home_team.fifa_ranking}</span>}
                             </div>
                         </div>
 
@@ -260,7 +250,6 @@ export default function GroupStage({
                             <ScoreStepper 
                                 value={pred.home_score} 
                                 onChange={(val) => smartPredict(m.id, 'home_score', val, pred)}
-                                isWinner={pred.home_score > pred.away_score}
                             />
                             
                             {/* VS Badge */}
@@ -271,7 +260,6 @@ export default function GroupStage({
                             <ScoreStepper 
                                 value={pred.away_score} 
                                 onChange={(val) => smartPredict(m.id, 'away_score', val, pred)}
-                                isWinner={pred.away_score > pred.home_score}
                             />
                         </div>
 
@@ -279,7 +267,7 @@ export default function GroupStage({
                         <div className="flex-1 flex flex-row sm:flex-col items-center gap-4 sm:gap-3 w-full sm:w-auto justify-start sm:justify-center text-left sm:text-center">
                              <div className="relative shrink-0">
                                 <img src={getFlagUrl(m.away_team.id)} className="w-12 h-8 sm:w-16 sm:h-10 rounded shadow-md object-cover ring-1 ring-slate-100" alt={m.away_team.name} />
-                                <span className="absolute -bottom-1 -left-1 sm:-bottom-2 sm:-left-2 bg-slate-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">#{m.away_team.fifa_ranking || '-'}</span>
+                                {m.away_team.fifa_ranking && <span className="absolute -bottom-1 -left-1 sm:-bottom-2 sm:-left-2 bg-slate-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">#{m.away_team.fifa_ranking}</span>}
                             </div>
                             <div className="flex flex-col">
                                 <span className="font-black text-base text-slate-800 leading-tight">{getTeamName(m.away_team.id, m.away_team.name)}</span>

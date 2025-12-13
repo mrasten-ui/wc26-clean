@@ -1,12 +1,11 @@
-// hooks/useAppData.ts
 "use client";
 import { useState, useEffect } from 'react';
-import { createClient } from '../lib/supabase'; // Adjust path if needed
+import { createClient } from '../lib/supabase'; 
 import { Match, Prediction, GlobalPredictions, LeaderboardEntry, UserData, TeamData } from '../lib/types'; 
 
 export function useAppData() {
     // --- State Declarations ---
-    const [supabase] = useState(() => createClient()); // Initialize Supabase Client once
+    const [supabase] = useState(() => createClient()); 
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<UserData | null>(null);
     const [matches, setMatches] = useState<Match[]>([]);
@@ -31,7 +30,7 @@ export function useAppData() {
                 
                 // Fetch User Profile
                 const { data: profileData, error: profileError } = await supabase
-                    .from('profiles') // Assuming your user data table is 'profiles'
+                    .from('profiles') 
                     .select('id, email, full_name, reveal_tokens')
                     .eq('id', currentUserId)
                     .single();
@@ -48,12 +47,13 @@ export function useAppData() {
 
 
             // 2. Fetch Static Match & Team Data
+            // 🔥 UPDATE: Added 'fifa_ranking' to the selection below
             const { data: matchData, error: matchError } = await supabase
                 .from('matches')
                 .select(`
                     *, 
-                    home_team:home_team_id (id, name, group_id, flag_emoji),
-                    away_team:away_team_id (id, name, group_id, flag_emoji)
+                    home_team:home_team_id (id, name, group_id, flag_emoji, fifa_ranking),
+                    away_team:away_team_id (id, name, group_id, flag_emoji, fifa_ranking)
                 `)
                 .order('id', { ascending: true });
 
@@ -61,7 +61,6 @@ export function useAppData() {
                 setMatches(matchData as Match[]);
                 
                 // Extract unique teams
-                // 🔥 CRITICAL FIX: Explicitly type the accumulator (acc: TeamData[])
                 const teams = matchData.reduce((acc: TeamData[], match) => {
                     if (match.home_team && !acc.some(t => t.id === match.home_team!.id)) {
                         acc.push(match.home_team!);
@@ -91,7 +90,6 @@ export function useAppData() {
                     const userId = p.user_id;
                     const userName = p.user?.full_name || 'Anonymous';
                     
-                    // Initialize the inner object with the required structure
                     if (!globalPredMap[userId]) {
                         globalPredMap[userId] = { 
                             full_name: userName, 
@@ -99,10 +97,8 @@ export function useAppData() {
                         };
                     }
                     
-                    // Add prediction to the user's map inside globalPredMap
                     globalPredMap[userId].predictions[p.match_id] = p as Prediction;
                     
-                    // If this is the current user, populate userPredMap
                     if (userId === currentUserId) {
                         userPredMap[p.match_id] = p as Prediction;
                     }
@@ -114,9 +110,9 @@ export function useAppData() {
                 console.error("Error fetching predictions:", allPredError);
             }
             
-            // 4. Fetch Leaderboard (Assuming this is a view or function in Supabase)
+            // 4. Fetch Leaderboard
             const { data: leaderboardData, error: leaderboardError } = await supabase
-                .from('leaderboard_view') // Adjust table name if necessary
+                .from('leaderboard_view') 
                 .select('*')
                 .order('rank', { ascending: true });
 
@@ -125,7 +121,6 @@ export function useAppData() {
             } else if (leaderboardError) {
                 console.error("Error fetching leaderboard:", leaderboardError);
             }
-
 
             setLoading(false);
         }
