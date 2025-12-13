@@ -19,7 +19,7 @@ interface GroupStageProps {
   getTeamName: (id: string, def: string) => string;
 }
 
-// --- COMPONENT: THE NEON OBELISK STEPPER ---
+// --- NEW COMPONENT: DIGITAL SCOREBOARD TABS ---
 const ScoreStepper = ({ 
     value, 
     onChange, 
@@ -30,7 +30,7 @@ const ScoreStepper = ({
     isWinner?: boolean 
 }) => {
     
-    // Logic is now purely reactive, calling onChange with the new value.
+    // Logic remains the same: use onChange to handle state/0-0 init
     const handleUp = (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault(); 
@@ -49,41 +49,44 @@ const ScoreStepper = ({
     
     // Styles
     const containerClass = isActive 
-        ? "bg-white ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-slate-900" 
-        : "bg-slate-100 border border-slate-200 text-slate-300 hover:border-slate-300";
+        ? "bg-white ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]" // White fill, Neon ring
+        : "bg-slate-100 border border-slate-200"; // Empty state
         
-    const numberClass = isActive ? "scale-110 font-black" : "font-medium";
-    const buttonTextColor = isActive ? "text-slate-600 hover:text-blue-500" : "text-slate-400";
-    const buttonHoverBg = isActive ? "hover:bg-slate-100" : "hover:bg-slate-200";
+    const numberClass = isActive 
+        ? "text-slate-900 scale-110 font-black" 
+        : "text-slate-400 font-medium";
+
+    const buttonBaseClass = "w-full h-1/3 flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer";
+    const buttonActiveClass = "hover:bg-cyan-50 text-slate-800"; // Subtle hover effect when active
+    const buttonInactiveClass = "hover:bg-slate-200 text-slate-500"; // Subtle hover effect when inactive
 
     return (
         <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none overflow-hidden ${containerClass}`}>
             
-            {/* UP BUTTON */}
+            {/* UP BUTTON (Top 1/3) */}
             <button 
                 type="button" 
                 onClick={handleUp}
-                className={`w-full h-[40%] flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer
-                    ${buttonTextColor} ${buttonHoverBg}
-                `}
+                className={`${buttonBaseClass} ${isActive ? buttonActiveClass : buttonInactiveClass} rounded-t-2xl`}
+                style={{ backgroundColor: isActive ? 'transparent' : '' }} // Ensure only transparent overlay for active state
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                   <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 8.832 6.29 12.77a.75.75 0 11-1.08-1.04l4.25-4.5a.75.75 0 011.08 0l4.25 4.5a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
                 </svg>
             </button>
 
-            {/* SCORE DISPLAY */}
-            <div className={`h-[20%] flex items-center justify-center text-3xl leading-none transition-transform duration-300 ${numberClass}`}>
+            {/* SCORE DISPLAY (Middle 1/3) */}
+            <div className={`h-1/3 flex items-center justify-center text-3xl leading-none transition-transform duration-300 ${numberClass}`}>
                 {value ?? '-'}
             </div>
 
-            {/* DOWN BUTTON */}
+            {/* DOWN BUTTON (Bottom 1/3) */}
             <button 
                 type="button"
                 onClick={handleDown}
-                className={`w-full h-[40%] flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer
-                    ${buttonTextColor} ${buttonHoverBg}
-                `}
+                className={`${buttonBaseClass} ${isActive ? buttonActiveClass : buttonInactiveClass} rounded-b-2xl`}
+                disabled={value === 0} // Disable decrement when already 0 (after initialization)
+                style={{ backgroundColor: isActive ? 'transparent' : '' }}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
@@ -129,7 +132,7 @@ export default function GroupStage({
 
   const sortedStandings = Object.values(standings).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd);
 
-  // --- 2. Scroll Detection for Mini Table (omitted for brevity) ---
+  // --- 2. Scroll Detection for Mini Table ---
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -237,11 +240,10 @@ export default function GroupStage({
                             </div>
                         </div>
 
-                        {/* THE NEON OBELISKS */}
+                        {/* THE DIGITAL SCOREBOARD TABS */}
                         <div className="flex items-center gap-3 sm:gap-6 shrink-0 z-10">
                             <ScoreStepper 
                                 value={pred.home_score} 
-                                // FIX: Call handlePredict directly
                                 onChange={(val) => handlePredict(m.id, 'home_score', val)}
                                 isWinner={pred.home_score > pred.away_score}
                             />
@@ -253,7 +255,6 @@ export default function GroupStage({
                             
                             <ScoreStepper 
                                 value={pred.away_score} 
-                                // FIX: Call handlePredict directly
                                 onChange={(val) => handlePredict(m.id, 'away_score', val)}
                                 isWinner={pred.away_score > pred.home_score}
                             />
