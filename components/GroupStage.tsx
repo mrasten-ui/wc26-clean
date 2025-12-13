@@ -30,17 +30,17 @@ const ScoreStepper = ({
     isWinner?: boolean 
 }) => {
     
-    // 🔥 FIX: Robust check for null/undefined to initialize at 0
-    const handleUp = (e: React.MouseEvent) => {
+    // 🔥 FIX: Aggressive Event Handling
+    const handleUp = (e: any) => {
+        e.preventDefault(); 
         e.stopPropagation();
-        e.preventDefault(); // Prevent any scrolling/default behavior
         if (value == null) onChange(0);
         else onChange(value + 1);
     };
 
-    const handleDown = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleDown = (e: any) => {
         e.preventDefault();
+        e.stopPropagation();
         if (value == null) onChange(0);
         else if (value > 0) onChange(value - 1);
     };
@@ -55,23 +55,23 @@ const ScoreStepper = ({
     const numberClass = isActive ? "scale-110 font-black text-cyan-50" : "font-medium";
 
     return (
-        <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none overflow-hidden ${containerClass}`}>
+        <div className={`flex flex-col items-center justify-between w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none ${containerClass}`}>
             
             {/* UP BUTTON */}
             <button 
-                type="button" // 🔥 FIX: Ensure it's not treated as a submit button
+                type="button" 
                 onClick={handleUp}
-                className={`w-full h-[40%] flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer
+                className={`w-full h-full flex-1 flex items-center justify-center rounded-t-2xl transition-colors active:scale-95 touch-manipulation cursor-pointer z-20
                     ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
                 `}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6">
                   <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 8.832 6.29 12.77a.75.75 0 11-1.08-1.04l4.25-4.5a.75.75 0 011.08 0l4.25 4.5a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
                 </svg>
             </button>
 
             {/* SCORE DISPLAY */}
-            <div className={`h-[20%] flex items-center justify-center text-3xl leading-none transition-transform duration-300 ${numberClass}`}>
+            <div className={`flex-shrink-0 h-8 flex items-center justify-center text-3xl leading-none transition-transform duration-300 pointer-events-none z-10 ${numberClass}`}>
                 {value ?? '-'}
             </div>
 
@@ -79,11 +79,11 @@ const ScoreStepper = ({
             <button 
                 type="button"
                 onClick={handleDown}
-                className={`w-full h-[40%] flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer
+                className={`w-full h-full flex-1 flex items-center justify-center rounded-b-2xl transition-colors active:scale-95 touch-manipulation cursor-pointer z-20
                     ${isActive ? "hover:bg-white/10 text-cyan-200" : "hover:bg-slate-200 text-slate-400"}
                 `}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>
             </button>
@@ -98,7 +98,7 @@ export default function GroupStage({
 }: GroupStageProps) {
   
   const currentMatches = matchesByGroup[activeTab] || [];
-  const tableRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null); // 🔥 FIX: Using a sentinel line
   const [showMiniTable, setShowMiniTable] = useState(false);
   
   // --- 1. Calculate Standings ---
@@ -130,7 +130,6 @@ export default function GroupStage({
   // --- 2. Smart Predict Logic ---
   const smartPredict = (matchId: number, field: "home_score" | "away_score", val: number, currentPred: any) => {
       handlePredict(matchId, field, val);
-      // Init other score to 0 if null
       const otherField = field === "home_score" ? "away_score" : "home_score";
       if (currentPred[otherField] == null) {
           handlePredict(matchId, otherField, 0);
@@ -141,18 +140,24 @@ export default function GroupStage({
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Show mini table when main table is NOT visible (scrolled past)
-        setShowMiniTable(!entry.isIntersecting);
+        // Show mini table when sentinel (bottom of main table) scrolls UP out of view (or nearly)
+        // Adjust logic: If sentinel is NOT intersecting and its top is ABOVE viewport, we are scrolled past.
+        // Simplified: If sentinel is off screen, show mini table.
+        if (!entry.isIntersecting && entry.boundingClientRect.top < 150) {
+            setShowMiniTable(true);
+        } else {
+            setShowMiniTable(false);
+        }
       },
-      { threshold: 0.1 } // Trigger when 10% of the table is visible/hidden
+      { rootMargin: "-140px 0px 0px 0px" } // Offset for the header height
     );
 
-    if (tableRef.current) {
-      observer.observe(tableRef.current);
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current);
     }
 
     return () => {
-      if (tableRef.current) observer.unobserve(tableRef.current);
+      if (sentinelRef.current) observer.unobserve(sentinelRef.current);
     };
   }, []);
 
@@ -160,7 +165,8 @@ export default function GroupStage({
     <div className="flex flex-col gap-8 animate-in slide-in-from-right-4 duration-500 relative">
       
       {/* --- FLOATING MINI TABLE (Sticky) --- */}
-      <div className={`fixed top-[134px] left-0 right-0 z-40 transition-all duration-300 transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
+      {/* Top position calculated: Header (88px) + Tabs (48px) approx 136px */}
+      <div className={`fixed top-[136px] left-0 right-0 z-40 transition-all duration-300 transform ${showMiniTable ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
         <div className="max-w-xl mx-auto px-4">
              <div className="bg-[#154284]/95 backdrop-blur-md shadow-xl border-t border-white/10 text-white rounded-b-xl px-4 py-2 flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
                 {sortedStandings.map((team: any, i: number) => (
@@ -175,7 +181,7 @@ export default function GroupStage({
       </div>
 
       {/* --- MAIN GROUP TABLE --- */}
-      <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden relative z-10">
         <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
              <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Group {activeTab} Table</h2>
              <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Top 2 Qualify</span>
@@ -214,6 +220,9 @@ export default function GroupStage({
           </tbody>
         </table>
       </div>
+      
+      {/* --- SENTINEL FOR SCROLL DETECTION --- */}
+      <div ref={sentinelRef} className="h-px w-full -mt-4 opacity-0 pointer-events-none" />
 
       {/* --- MATCHES LIST --- */}
       <div className="space-y-4 pb-20">
