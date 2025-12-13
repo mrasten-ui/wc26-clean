@@ -93,7 +93,6 @@ export default function Header({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visibleSaveStatus, setVisibleSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Fix stuck "Saved" button
   useEffect(() => {
     setVisibleSaveStatus(saveStatus);
     if (saveStatus === 'saved') {
@@ -185,7 +184,7 @@ export default function Header({
       {isMenuOpen && <div className="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px]" onClick={() => setIsMenuOpen(false)} />}
 
       <div className="px-4 py-4 flex items-center justify-between relative h-[88px]">
-        {/* FIX: Better flag positioning */}
+        {/* Flag positioning */}
         <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 bg-black/20 p-1 rounded-lg backdrop-blur-sm border border-white/5">
             <button onClick={() => handleLangSelect('en')} className={`p-1.5 rounded transition-all ${lang === 'en' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="English"><UKFlag className="w-6 h-4" /></button>
             <button onClick={() => handleLangSelect('no')} className={`p-1.5 rounded transition-all ${lang === 'no' ? 'bg-white shadow-sm scale-110' : 'opacity-40 hover:opacity-100 grayscale hover:grayscale-0'}`} title="Norsk"><NorwayFlag className="w-6 h-4" /></button>
@@ -249,10 +248,9 @@ export default function Header({
                     ? "bg-white text-slate-900 scale-105" 
                     : "bg-white/10 text-slate-300 hover:bg-white/20"}
                 `}
-                // 🔥 FIX: Full border + box-shadow for the NEON effect (instead of bottom bar)
                 style={activeTab === group ? { 
                     border: `2px solid ${STAGE_COLORS[group] || '#ccc'}`,
-                    boxShadow: `0 0 12px ${STAGE_COLORS[group]}60` // 60 opacity for the glow
+                    boxShadow: `0 0 12px ${STAGE_COLORS[group]}60` 
                 } : {}}
             >
               <span className="relative z-10">{group}</span>
@@ -287,9 +285,10 @@ export default function Header({
         </div>
       )}
 
+      {/* FIX: Moved Saved Banner to BOTTOM so it doesn't block the UI */}
       {visibleSaveStatus !== 'idle' && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur text-slate-900 px-4 py-1.5 rounded-full shadow-xl z-50 flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-4">
-           {visibleSaveStatus === 'saving' ? (<><div className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-600">✓</span> Saved</>)}
+        <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl z-[100] flex items-center gap-3 text-sm font-bold border border-white/10 animate-in slide-in-from-bottom-4">
+           {visibleSaveStatus === 'saving' ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-400 text-lg">✓</span> Saved</>)}
         </div>
       )}
     </header>

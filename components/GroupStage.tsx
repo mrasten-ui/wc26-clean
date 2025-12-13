@@ -19,39 +19,42 @@ interface GroupStageProps {
   getTeamName: (id: string, def: string) => string;
 }
 
-// --- DEBUG STEPPER: ORANGE BUTTONS ---
 const ScoreStepper = ({ 
     value, 
-    onChange,
-    teamName 
+    onChange 
 }: { 
     value: number | null | undefined, 
-    onChange: (val: number) => void,
-    teamName: string
+    onChange: (val: number) => void
 }) => {
     
     const handleUp = (e: React.MouseEvent) => {
-        console.log(`CLICKED UP for ${teamName}. Current value: ${value}`); // CHECK CONSOLE
+        e.preventDefault(); 
         e.stopPropagation();
-        const current = (value === null || value === undefined) ? -1 : value;
+        console.log("Up Clicked"); // Debug log
+        // Ensure we pass a clean NUMBER
+        const current = (value === null || value === undefined) ? -1 : Number(value);
         onChange(current + 1);
     };
 
     const handleDown = (e: React.MouseEvent) => {
-        console.log(`CLICKED DOWN for ${teamName}. Current value: ${value}`); // CHECK CONSOLE
+        e.preventDefault();
         e.stopPropagation();
-        const current = (value === null || value === undefined) ? 1 : value;
+        console.log("Down Clicked"); // Debug log
+        const current = (value === null || value === undefined) ? 1 : Number(value);
         if (current > 0) onChange(current - 1);
         else onChange(0);
     };
 
     const isActive = value !== null && value !== undefined;
     
-    // VISUAL TEST: Orange border/text to prove code updated
+    // VISUALS
     const containerClass = isActive 
-        ? "bg-[#0f2d5a] ring-2 ring-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] text-white" 
-        : "bg-white border-2 border-orange-200 text-slate-400";
+        ? "bg-[#0f2d5a] ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] text-white" 
+        : "bg-slate-100 border border-slate-200 text-slate-300 hover:border-slate-300";
         
+    const numberClass = isActive ? "scale-110 font-black text-cyan-50" : "font-medium";
+    const btnClass = isActive ? "text-cyan-200 hover:bg-white/10" : "text-slate-400 hover:bg-slate-200";
+
     return (
         <div className={`flex flex-col w-12 sm:w-14 h-24 rounded-2xl transition-all duration-300 select-none relative overflow-hidden ${containerClass}`}>
             
@@ -59,7 +62,7 @@ const ScoreStepper = ({
             <button 
                 type="button" 
                 onClick={handleUp}
-                className="flex-1 w-full flex items-center justify-center hover:bg-orange-500/20 active:bg-orange-500/40 transition-colors cursor-pointer z-20"
+                className={`flex-1 w-full flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer z-20 ${btnClass}`}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 pointer-events-none">
                   <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 01-1.06-.02L10 8.832 6.29 12.77a.75.75 0 11-1.08-1.04l4.25-4.5a.75.75 0 011.08 0l4.25 4.5a.75.75 0 01-.02 1.06z" clipRule="evenodd" />
@@ -67,7 +70,7 @@ const ScoreStepper = ({
             </button>
 
             {/* SCORE DISPLAY */}
-            <div className="h-8 flex items-center justify-center text-3xl font-black leading-none z-10 pointer-events-none">
+            <div className={`h-8 flex items-center justify-center text-3xl leading-none transition-transform duration-300 z-10 pointer-events-none ${numberClass}`}>
                 {value ?? '-'}
             </div>
 
@@ -75,7 +78,7 @@ const ScoreStepper = ({
             <button 
                 type="button"
                 onClick={handleDown}
-                className="flex-1 w-full flex items-center justify-center hover:bg-orange-500/20 active:bg-orange-500/40 transition-colors cursor-pointer z-20"
+                className={`flex-1 w-full flex items-center justify-center transition-colors active:scale-95 touch-manipulation cursor-pointer z-20 ${btnClass}`}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 pointer-events-none">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
@@ -94,6 +97,7 @@ export default function GroupStage({
   const currentMatches = matchesByGroup[activeTab] || [];
   const [showMiniTable, setShowMiniTable] = useState(false);
   
+  // Calculate Standings
   const standings = currentMatches.reduce((acc: any, m: any) => {
       const home = m.home_team;
       const away = m.away_team;
@@ -119,7 +123,7 @@ export default function GroupStage({
 
   const sortedStandings = Object.values(standings).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd);
 
-  // Scroll Detection for Mini Table
+  // Scroll Detection
   useEffect(() => {
     const handleScroll = () => {
         if (window.scrollY > 300) {
@@ -136,23 +140,26 @@ export default function GroupStage({
     <div className="flex flex-col gap-8 animate-in slide-in-from-right-4 duration-500 relative">
       
       {/* FLOATING MINI TABLE */}
-      {showMiniTable && (
-          <div className="fixed top-[134px] left-0 right-0 z-50 animate-in slide-in-from-top-4 duration-300">
-            <div className="max-w-xl mx-auto px-4">
-                 <div className="bg-[#154284] shadow-2xl border-t border-white/10 text-white rounded-b-xl px-4 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar ring-1 ring-white/10">
-                    {sortedStandings.map((team: any, i: number) => (
-                        <div key={team.id} className={`flex flex-col items-center justify-center min-w-[3rem] gap-1 ${i < 2 ? 'opacity-100' : 'opacity-50'}`}>
-                            <div className="flex items-center gap-1">
-                                <span className={`text-[10px] font-black ${i < 2 ? 'text-green-400' : 'text-slate-400'}`}>{i+1}</span>
-                                <img src={getFlagUrl(team.id)} alt={team.id} className="w-5 h-3.5 rounded shadow-sm" />
-                            </div>
-                            <span className="text-xs font-bold leading-none">{team.pts}</span>
+      {/* FIX: Z-Index 30 (Under Header z-50) */}
+      <div 
+        className={`fixed top-[134px] left-0 right-0 z-30 transition-all duration-300 ease-in-out transform ${
+            showMiniTable ? 'translate-y-0 opacity-100 shadow-xl' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="max-w-xl mx-auto px-4">
+             <div className="bg-[#154284] border-t border-white/10 text-white rounded-b-xl px-4 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar ring-1 ring-white/10">
+                {sortedStandings.map((team: any, i: number) => (
+                    <div key={team.id} className={`flex flex-col items-center justify-center min-w-[3rem] gap-1 ${i < 2 ? 'opacity-100' : 'opacity-50'}`}>
+                        <div className="flex items-center gap-1">
+                            <span className={`text-[10px] font-black ${i < 2 ? 'text-green-400' : 'text-slate-400'}`}>{i+1}</span>
+                            <img src={getFlagUrl(team.id)} alt={team.id} className="w-5 h-3.5 rounded shadow-sm" />
                         </div>
-                    ))}
-                 </div>
-            </div>
-          </div>
-      )}
+                        <span className="text-xs font-bold leading-none">{team.pts}</span>
+                    </div>
+                ))}
+             </div>
+        </div>
+      </div>
 
       {/* MAIN GROUP TABLE */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden relative z-10">
@@ -227,7 +234,6 @@ export default function GroupStage({
                             <ScoreStepper 
                                 value={pred.home_score} 
                                 onChange={(val) => handlePredict(m.id, 'home_score', val)}
-                                teamName="Home"
                             />
                             
                             <div className="flex flex-col items-center gap-1">
@@ -237,7 +243,6 @@ export default function GroupStage({
                             <ScoreStepper 
                                 value={pred.away_score} 
                                 onChange={(val) => handlePredict(m.id, 'away_score', val)}
-                                teamName="Away"
                             />
                         </div>
 
