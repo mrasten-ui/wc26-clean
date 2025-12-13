@@ -35,7 +35,7 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
 
 
 export default function Home() {
-  // 1. Load Data (FIXED: Removed the non-existent 'setMatches' property)
+  // 1. Load Data
   const { 
     user, 
     matches, 
@@ -97,6 +97,11 @@ export default function Home() {
   
   const isTournamentComplete = totalMatches > 0 && predictedCount === totalMatches;
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
+
+  // 🔥 CRITICAL FIX: Define hasPredictions here
+  const hasGroupData = allValidMatches.some(m => m.stage === 'GROUP' && typeof predictions[m.id]?.home_score === 'number');
+  const hasKnockoutData = allValidMatches.some(m => m.stage !== 'GROUP' && !!predictions[m.id]?.winner_id);
+  const hasPredictions = hasGroupData || hasKnockoutData;
   
   // @ts-ignore
   const groupStandings: Record<string, any> = {};
