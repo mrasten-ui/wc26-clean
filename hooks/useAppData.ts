@@ -60,13 +60,14 @@ export function useAppData() {
             if (matchData) {
                 setMatches(matchData as Match[]);
                 
-                // Extract unique teams (assuming match data is a reliable source)
-                const teams = matchData.reduce((acc, match) => {
-                    if (match.home_team && !acc.some(t => t.id === match.home_team.id)) {
-                        acc.push(match.home_team);
+                // Extract unique teams
+                // 🔥 CRITICAL FIX: Explicitly type the accumulator (acc: TeamData[]) to fix Type Error
+                const teams = matchData.reduce((acc: TeamData[], match) => {
+                    if (match.home_team && !acc.some(t => t.id === match.home_team!.id)) {
+                        acc.push(match.home_team!);
                     }
-                    if (match.away_team && !acc.some(t => t.id === match.away_team.id)) {
-                        acc.push(match.away_team);
+                    if (match.away_team && !acc.some(t => t.id === match.away_team!.id)) {
+                        acc.push(match.away_team!);
                     }
                     return acc;
                 }, [] as TeamData[]);
@@ -90,7 +91,7 @@ export function useAppData() {
                     const userId = p.user_id;
                     const userName = p.user?.full_name || 'Anonymous';
                     
-                    // CRITICAL FIX: Initialize the inner object with the required structure
+                    // Initialize the inner object with the required structure
                     if (!globalPredMap[userId]) {
                         globalPredMap[userId] = { 
                             full_name: userName, 
@@ -137,7 +138,7 @@ export function useAppData() {
         supabase,
         user,
         matches,
-        setMatches, // Included, but likely not used outside the hook
+        setMatches, 
         predictions,
         setPredictions,
         allPredictions,
