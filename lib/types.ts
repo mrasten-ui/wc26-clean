@@ -1,12 +1,7 @@
 // lib/types.ts
 
-// ===========================================
-// CORE DATA STRUCTURES (Used in Database)
-// ===========================================
-
 /**
  * Defines the structure for a World Cup Team.
- * This MUST match the data structure in your 'teams' table.
  */
 export interface TeamData {
     id: string; // FIFA 3-letter code (e.g., 'ARG', 'SCO')
@@ -14,12 +9,11 @@ export interface TeamData {
     group_id: string; // Group letter (e.g., 'A', 'K')
     fifa_ranking: number; // For tie-breaking/seeding
     flag_emoji: string;
-    // Add any other team fields you use in your code here
+    // Add any other team fields you use in your database here
 }
 
 /**
  * Defines the structure for a World Cup Match.
- * This MUST match the data structure in your 'matches' table.
  */
 export interface Match {
     id: number; // Match ID (1-104)
@@ -48,7 +42,6 @@ export interface Match {
 
 /**
  * Defines the structure for a User's Prediction.
- * This MUST match the data structure in your 'predictions' table.
  */
 export interface Prediction {
     id?: number; // Optional ID for upsert operations
@@ -83,6 +76,8 @@ export interface UserData {
  * Structure for the Leaderboard display.
  */
 export interface LeaderboardEntry extends UserData {
+    // 🔥 FIX: Explicitly include user_id to resolve the 'l.user_id' error
+    user_id: string; 
     total_points: number;
     rank: number;
     // ... add more stats if needed (perfect scores, etc.)
@@ -100,7 +95,6 @@ export interface GlobalPredictions {
 
 /**
  * Structure defining how a bracket slot is resolved.
- * Used by bracket.ts to connect matches/groups.
  */
 export interface BracketMap {
     [code: string]: { // Key is the placeholder (e.g., '1A', 'W1')

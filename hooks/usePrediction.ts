@@ -1,28 +1,28 @@
 // hooks/usePrediction.ts
 "use client";
 import { useState, useCallback, useMemo } from 'react';
-// ASSUMED IMPORTS: Adjust paths and types if necessary
-import { createClient } from '../lib/supabase'; 
 import { Match, Prediction, GlobalPredictions, LeaderboardEntry, UserData } from '../lib/types'; 
+import { Dispatch, SetStateAction } from 'react';
+
+type SetPredictionsType = Dispatch<SetStateAction<Record<number, Prediction>>>;
 
 export function usePrediction(
     supabase: any,
     user: UserData | null, 
     matches: Match[],
     predictions: Record<number, Prediction>,
-    setPredictions: (p: any) => void,
+    setPredictions: SetPredictionsType, 
     allPredictions: GlobalPredictions,
     revealCount: number,
-    setRevealCount: (c: number) => void,
+    // 🔥 FIX: Use Dispatch<SetStateAction<number>> for setRevealCount for robust typing
+    setRevealCount: Dispatch<SetStateAction<number>>,
     leaderboard: LeaderboardEntry[],
-    setActiveTab: (tab: string) => void // Passed from app/page.tsx
+    setActiveTab: (tab: string) => void
 ) {
     
-    // --- 1. UNCONDITIONAL HOOKS (MUST BE AT THE TOP) ---
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [revealedMatches, setRevealedMatches] = useState<Record<number, { name: string, home: number | null, away: number | null }>>({});
 
-    // --- 2. EARLY EXIT FOR LOADING/LOGOUT (Fixes 'user is not defined' crash) ---
     if (!user || !user.id) {
          return {
             handlePredict: () => {},
@@ -33,11 +33,8 @@ export function usePrediction(
         };
     }
     
-    // Define user ID safely now that we know user is not null
     const currentUserId = user.id;
 
-    // --- 3. CALLBACK DEFINITIONS (Logic is now inside) ---
-    
     // 3a. Prediction Handler (Score and Winner)
     const handlePredict = useCallback(async (matchId: number, field: "home_score" | "away_score" | "winner_id", value: any) => {
         setSaveStatus('saving');
@@ -51,7 +48,7 @@ export function usePrediction(
             [field]: value
         };
 
-        setPredictions(prev => ({
+        setPredictions((prev: Record<number, Prediction>) => ({
             ...prev,
             [matchId]: newPrediction
         }));
@@ -83,9 +80,11 @@ export function usePrediction(
             return;
         }
 
-        setRevealCount(prev => prev - 1);
+        // 🔥 FIX 1: Explicitly type 'prev' as number
+        setRevealCount((prev: number) => prev - 1);
         
-        const rivalEntry = leaderboard.find(l => l.user_id === rivalId);
+        // 🔥 FIX 2: Explicitly type 'l' as LeaderboardEntry to fix l.user_id error
+        const rivalEntry = leaderboard.find((l: LeaderboardEntry) => l.user_id === rivalId);
         const rivalName = rivalEntry?.full_name || rivalId;
 
         setRevealedMatches(prev => ({
@@ -146,7 +145,8 @@ export function usePrediction(
 
         // Commit and Save
         const predictionsMap = newPredictionsArray.reduce((acc, p) => { acc[p.match_id] = p; return acc; }, {} as Record<number, Prediction>);
-        setPredictions(prev => ({ ...prev, ...predictionsMap }));
+        
+        setPredictions((prev: Record<number, Prediction>) => ({ ...prev, ...predictionsMap }));
         
         const { error } = await supabase.from('predictions').upsert(newPredictionsArray);
         
