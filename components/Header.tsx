@@ -93,6 +93,7 @@ export default function Header({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visibleSaveStatus, setVisibleSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
+  // Fix stuck "Saved" button
   useEffect(() => {
     setVisibleSaveStatus(saveStatus);
     if (saveStatus === 'saved') {
@@ -151,12 +152,11 @@ export default function Header({
   };
 
   return (
-    // FIX: Z-Index 100 to stay above everything else
-    <header className="sticky top-0 z-[100] text-white shadow-xl transition-all duration-300" style={{ backgroundColor: COLORS.navy }}>
+    <header className="sticky top-0 z-50 text-white shadow-xl transition-all duration-300" style={{ backgroundColor: COLORS.navy }}>
       
       {showVideo && (
         <div 
-            className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
+            className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300"
             onClick={() => setShowVideo(false)}
         >
             <div 
@@ -249,9 +249,10 @@ export default function Header({
                     ? "bg-white text-slate-900 scale-105" 
                     : "bg-white/10 text-slate-300 hover:bg-white/20"}
                 `}
+                // Full border + box-shadow for the NEON effect
                 style={activeTab === group ? { 
                     border: `2px solid ${STAGE_COLORS[group] || '#ccc'}`,
-                    boxShadow: `0 0 12px ${STAGE_COLORS[group]}60` 
+                    boxShadow: `0 0 12px ${STAGE_COLORS[group]}60` // 60 opacity for the glow
                 } : {}}
             >
               <span className="relative z-10">{group}</span>
@@ -286,10 +287,9 @@ export default function Header({
         </div>
       )}
 
-      {/* FIX: Moved Saved Banner to FIXED BOTTOM CENTER so it doesn't block the UI */}
       {visibleSaveStatus !== 'idle' && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-xl shadow-2xl z-[110] flex items-center gap-3 text-sm font-bold border border-white/10 animate-in slide-in-from-bottom-4">
-           {visibleSaveStatus === 'saving' ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-400 text-lg">✓</span> Saved</>)}
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur text-slate-900 px-4 py-1.5 rounded-full shadow-xl z-50 flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-4">
+           {visibleSaveStatus === 'saving' ? (<><div className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-600">✓</span> Saved</>)}
         </div>
       )}
     </header>
