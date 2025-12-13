@@ -61,7 +61,7 @@ export function useAppData() {
                 setMatches(matchData as Match[]);
                 
                 // Extract unique teams
-                // 🔥 CRITICAL FIX: Explicitly type the accumulator (acc: TeamData[]) to fix Type Error
+                // 🔥 CRITICAL FIX: Explicitly type the accumulator (acc: TeamData[])
                 const teams = matchData.reduce((acc: TeamData[], match) => {
                     if (match.home_team && !acc.some(t => t.id === match.home_team!.id)) {
                         acc.push(match.home_team!);
