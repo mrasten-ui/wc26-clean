@@ -30,6 +30,7 @@ const ScoreStepper = ({
     isWinner?: boolean 
 }) => {
     
+    // Logic is now purely reactive, calling onChange with the new value.
     const handleUp = (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault(); 
@@ -128,26 +129,7 @@ export default function GroupStage({
 
   const sortedStandings = Object.values(standings).sort((a: any, b: any) => b.pts - a.pts || b.gd - a.gd);
 
-  // --- 2. Smart Predict Logic (Updated for maximum reliability) ---
-  const smartPredict = (matchId: number, field: "home_score" | "away_score", val: number, currentPred: any) => {
-      
-      // 1. Immediately call handlePredict for the score the user just changed
-      handlePredict(matchId, field, val);
-
-      // 2. Check the other field's state for the 0-0 initialization
-      const otherField = field === "home_score" ? "away_score" : "home_score";
-      
-      // If the OTHER score is currently null/undefined, set it to 0 as well.
-      // We wrap this in a setTimeout of 0 to ensure the first update has time to process,
-      // preventing the second update from being lost if the hook is performing complex state merges.
-      if (currentPred[otherField] == null) {
-          setTimeout(() => {
-              handlePredict(matchId, otherField, 0);
-          }, 0);
-      }
-  };
-
-  // --- 3. Scroll Detection for Mini Table (omitted for brevity) ---
+  // --- 2. Scroll Detection for Mini Table (omitted for brevity) ---
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -259,7 +241,8 @@ export default function GroupStage({
                         <div className="flex items-center gap-3 sm:gap-6 shrink-0 z-10">
                             <ScoreStepper 
                                 value={pred.home_score} 
-                                onChange={(val) => smartPredict(m.id, 'home_score', val, pred)}
+                                // FIX: Call handlePredict directly
+                                onChange={(val) => handlePredict(m.id, 'home_score', val)}
                                 isWinner={pred.home_score > pred.away_score}
                             />
                             
@@ -270,7 +253,8 @@ export default function GroupStage({
                             
                             <ScoreStepper 
                                 value={pred.away_score} 
-                                onChange={(val) => smartPredict(m.id, 'away_score', val, pred)}
+                                // FIX: Call handlePredict directly
+                                onChange={(val) => handlePredict(m.id, 'away_score', val)}
                                 isWinner={pred.away_score > pred.home_score}
                             />
                         </div>
