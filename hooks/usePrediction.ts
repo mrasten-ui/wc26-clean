@@ -22,8 +22,6 @@ export function usePrediction(
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [revealedMatches, setRevealedMatches] = useState<Record<number, { name: string, home: number | null, away: number | null }>>({});
 
-    // ❌ DELETED THE ILLEGAL 'IF (!USER) RETURN' BLOCK HERE
-
     const handlePredict = useCallback(async (matchId: number, field: "home_score" | "away_score" | "winner_id", value: any) => {
         // ✅ MOVED THE CHECK INSIDE THE FUNCTION
         if (!user || !user.id) {
@@ -75,9 +73,14 @@ export function usePrediction(
 
     }, [predictions, setPredictions, user, supabase]); 
 
-    // ✅ Always return the handlers, even if they do nothing when logged out
-    const handleReveal = useCallback(() => {}, []);
-    const handleAutoFill = useCallback(() => {}, []);
+    // ✅ FIXED: Added arguments to satisfy TypeScript build
+    const handleReveal = useCallback((matchId: number, rivalId: string) => {
+        console.log("Reveal feature coming soon", matchId, rivalId);
+    }, []);
+
+    const handleAutoFill = useCallback((teams: string[], tab: string) => {
+        console.log("AutoFill feature coming soon", teams, tab);
+    }, []);
 
     return {
         handlePredict,
