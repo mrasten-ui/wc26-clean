@@ -1,6 +1,8 @@
-// lib/simulation.ts
 import { Match, Prediction } from "./types";
 
+/**
+ * Calculates a predicted score based on rankings and "Boost" factors.
+ */
 const calculateScore = (
     myRank: number, 
     opponentRank: number, 
@@ -8,15 +10,22 @@ const calculateScore = (
     isOpponentBoosted: boolean,
     isHome: boolean
 ) => {
+    // 1. Base Expectancy (Average goals ~1.3)
     let lambda = 1.3;
+
+    // 2. Ranking Influence (Diff of 10 ranks = ~0.25 goal swing)
     const rankDiff = opponentRank - myRank; 
     lambda += (rankDiff / 40);
 
+    // 3. Boosts & Home Advantage
     if (isHome) lambda += 0.15;
-    if (isMyTeamBoosted) lambda += 1.2; 
+    if (isMyTeamBoosted) lambda += 1.2; // The Helping Hand
     if (isOpponentBoosted) lambda -= 0.5; 
+
+    // 4. Floors
     if (lambda < 0.2) lambda = 0.2; 
     
+    // 5. Randomness (Poisson-like)
     const random = Math.random();
     let score = 0;
     if (random > 0.95) score = Math.floor(lambda + 2); 
@@ -26,6 +35,9 @@ const calculateScore = (
     return Math.max(0, score);
 };
 
+/**
+ * Generates predictions for all Group Stage matches.
+ */
 export const generateGroupPredictions = (
     matches: Match[], 
     userId: string, 

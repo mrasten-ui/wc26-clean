@@ -43,6 +43,7 @@ export function usePrediction(
         // @ts-ignore
         newPred[field] = value;
 
+        // Smart 0-0 Logic
         if (field === "home_score" || field === "away_score") {
              const otherField = field === "home_score" ? "away_score" : "home_score";
              if (newPred[otherField] == null) newPred[otherField] = 0;
@@ -51,7 +52,7 @@ export function usePrediction(
 
         setPredictions((prev) => ({ ...prev, [matchId]: newPred }));
 
-        // Upsert single prediction
+        // Save single prediction
         const { error } = await supabase.from('predictions').upsert([newPred], { onConflict: 'user_id, match_id' });
 
         if (error) {
@@ -76,12 +77,13 @@ export function usePrediction(
         if (isGroupMode) {
             setSaveStatus('saving');
             
-            // Use logic from simulation.ts
+            // Logic imported from simulation.ts
             const newPredictionsArray = generateGroupPredictions(matches, user.id, boostedTeams);
             
             const newPredictionsMap: Record<number, Prediction> = {};
             newPredictionsArray.forEach(p => { newPredictionsMap[p.match_id] = p; });
 
+            // Optimistic UI Update
             setPredictions(prev => ({ ...prev, ...newPredictionsMap }));
 
             // Bulk Save
@@ -90,7 +92,7 @@ export function usePrediction(
             if (error) {
                 console.error("AutoFill Failed:", error);
                 setSaveStatus('idle');
-                // 🔥 SHOW THE REAL ERROR MESSAGE ON SCREEN
+                // 🔥 SHOW THE REAL ERROR MESSAGE
                 alert(`Save Failed: ${error.message || JSON.stringify(error)}`);
             } else {
                 setSaveStatus('saved');
