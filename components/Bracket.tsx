@@ -1,79 +1,199 @@
-import { BracketMap } from "./types";
+"use client";
+import { Match, Prediction, BracketMap, TeamData } from "../lib/types";
+import { COLORS } from "../lib/constants";
+import { getFlagUrl } from "../lib/flags";
 
-export const normalizeStage = (stage: string) => {
-    if (stage === 'ROUND_OF_32') return 'R32';
-    if (stage === 'ROUND_OF_16') return 'R16';
-    if (stage === 'QUARTER_FINALS') return 'QF';
-    if (stage === 'SEMI_FINALS') return 'SF';
-    if (stage === '3RD_PLACE') return '3RD';
-    if (stage === 'FINAL') return 'FINAL';
-    return stage;
-};
+interface BracketProps {
+  activeKnockoutRound: string;
+  setActiveKnockoutRound: (stage: string) => void;
+  knockoutStages: string[];
+  matches: Match[];
+  predictions: Record<number, Prediction>;
+  bracketMap: BracketMap;
+  teamsMap: Record<string, TeamData>;
+  handlePredict: (matchId: number, field: "winner_id", value: any) => void;
+  isTournamentComplete: boolean;
+  champion: string | null;
+  handleBonusPick: (championId: string) => void;
+  t: any;
+  lang: string;
+  venueZones: Record<string, string>;
+  getTeamName: (id: string, def: string) => string;
+  teamNamesNo: Record<string, string>;
+}
 
-// Maps standardized placeholder codes (1A, 2B, etc) to Team IDs based on standings
-export const calculateBracketMapping = (
-    groupStandings: Record<string, any[]>, 
-    thirdPlaceTable: any[], 
-    matches: any[]
-): BracketMap => {
-    const map: BracketMap = {};
+export default function Bracket({
+  activeKnockoutRound,
+  setActiveKnockoutRound,
+  knockoutStages,
+  matches,
+  predictions,
+  bracketMap,
+  teamsMap,
+  handlePredict,
+  isTournamentComplete,
+  champion,
+  t,
+  getTeamName
+}: BracketProps) {
+  
+  const stageMatches = matches.filter(m => m.stage === activeKnockoutRound);
 
-    // 1. Map Group Winners (1A..1L) and Runners Up (2A..2L)
-    // groupStandings is { "A": [ {id: 'MEX', ...}, {id: 'KSA', ...} ] }
-    Object.entries(groupStandings).forEach(([group, teams]) => {
-        if (teams && teams.length > 0) {
-            // Winner
-            map[`1${group}`] = {
-                name: `Winner ${group}`,
-                sourceType: 'GROUP',
-                sourceId: group,
-                predictedTeamId: teams[0]?.id || null
-            };
-            // Runner Up
-            map[`2${group}`] = {
-                name: `Runner-up ${group}`,
-                sourceType: 'GROUP',
-                sourceId: group,
-                predictedTeamId: teams[1]?.id || null
-            };
-        }
-    });
-
-    // 2. Map 3rd Place Teams (3rd1..3rd8)
-    // This logic is complex in real WC26, assuming simplified top 8 for now
-    if (thirdPlaceTable && thirdPlaceTable.length > 0) {
-        thirdPlaceTable.slice(0, 8).forEach((team, idx) => {
-            const code = `3rd${idx + 1}`; // 3rd1, 3rd2...
-            map[code] = {
-                name: `3rd Place #${idx + 1}`,
-                sourceType: 'GROUP',
-                sourceId: '3RD',
-                predictedTeamId: team.id || null
-            };
-        });
+  const getTeam = (id: string) => {
+    if (teamsMap[id]) {
+      return { 
+        id, 
+        name: getTeamName(id, teamsMap[id].name),
+        flag: getFlagUrl(id) 
+      };
+    }
+    
+    const predictedId = bracketMap[id]?.predictedTeamId;
+    if (predictedId && teamsMap[predictedId]) {
+       const sourceTeam = teamsMap[predictedId];
+       return {
+           id: predictedId,
+           name: getTeamName(predictedId, sourceTeam?.name || predictedId),
+           flag: getFlagUrl(predictedId)
+       };
     }
 
-    // 3. Map Knockout Winners (W1, W2... for Match IDs)
-    // Matches should be sorted or accessed by ID
-    matches.forEach(m => {
-        if (m.stage !== 'GROUP' && m.id) {
-            // If the match is finished or predicted, who won?
-            // Note: This requires the predictions to be integrated into the match object passed here
-            // For now, we set up the placeholder
-            map[`W${m.id}`] = {
-                name: `Winner Match ${m.id}`,
-                sourceType: 'MATCH',
-                sourceId: m.id,
-                predictedTeamId: m.winner_id || null // This needs to come from prediction data
-            };
-            map[`L${m.id}`] = {
-                name: `Loser Match ${m.id}`,
-                sourceType: 'MATCH',
-                sourceId: m.id,
-                predictedTeamId: null // Typically for 3rd place playoff
-            };
-        }
-    });
+    const fallbackName = bracketMap[id]?.name || id;
+    return { 
+      id: id, 
+      name: isTournamentComplete ? fallbackName : id, 
+      flag: getFlagUrl('placeholder') 
+    };
+  };
 
-    return map;
-};
+  const MatchCard = ({ match }: { match: Match }) => {
+    const pred = predictions[match.id] || {};
+    const homeTeam = getTeam(match.home_team_id || match.home_code || '');
+    const awayTeam = getTeam(match.away_team_id || match.away_code || '');
+    
+    const isCompleted = match.status === 'FINISHED';
+    const matchWinnerId = isCompleted ? match.winner_id : pred.winner_id;
+
+    const isHomeResolved = !homeTeam.name.includes("Winner") && !homeTeam.name.includes("Runner-up");
+    const isAwayResolved = !awayTeam.name.includes("Winner") && !awayTeam.name.includes("Runner-up");
+    
+    const formatTime = new Date(match.kickoff_time.toString()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formatDate = new Date(match.kickoff_time.toString()).toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+    return (
+      <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden text-sm">
+        <div className="bg-slate-50 px-3 py-1.5 flex justify-between items-center text-[10px] font-bold uppercase border-b border-slate-100">
+          <span className="text-slate-400">{match.venue}</span>
+          <span className="text-slate-500">{formatDate} @ {formatTime}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 p-4">
+          <div className={`flex flex-col items-center gap-2 p-1 rounded-lg ${isHomeResolved && matchWinnerId === homeTeam.id ? 'bg-green-50/50' : ''}`}>
+            {!isHomeResolved ? (
+                <div className="w-12 h-8 rounded-md bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-slate-200 uppercase">{homeTeam.name}</div>
+            ) : (
+                <img src={homeTeam.flag} className="w-12 h-8 object-cover rounded shadow-sm" alt={homeTeam.name} />
+            )}
+            <span className={`text-center font-bold text-xs ${isHomeResolved ? 'text-slate-800' : 'text-slate-500'}`}>
+              {homeTeam.name}
+            </span>
+            <button 
+              onClick={() => handlePredict(match.id, 'winner_id', homeTeam.id)}
+              disabled={isCompleted || !isHomeResolved}
+              className={`w-full py-1 mt-1 text-xs font-black rounded transition-all active:scale-95 ${
+                matchWinnerId === homeTeam.id
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : isHomeResolved 
+                    ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
+                    : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+              }`}
+            >
+              {matchWinnerId === homeTeam.id ? 'WINNER' : 'PICK'}
+            </button>
+          </div>
+          
+          <div className={`flex flex-col items-center gap-2 p-1 rounded-lg ${isAwayResolved && matchWinnerId === awayTeam.id ? 'bg-green-50/50' : ''}`}>
+            {!isAwayResolved ? (
+                <div className="w-12 h-8 rounded-md bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-500 border border-slate-200 uppercase">{awayTeam.name}</div>
+            ) : (
+                <img src={awayTeam.flag} className="w-12 h-8 object-cover rounded shadow-sm" alt={awayTeam.name} />
+            )}
+            <span className={`text-center font-bold text-xs ${isAwayResolved ? 'text-slate-800' : 'text-slate-500'}`}>
+              {awayTeam.name}
+            </span>
+            <button 
+              onClick={() => handlePredict(match.id, 'winner_id', awayTeam.id)}
+              disabled={isCompleted || !isAwayResolved}
+              className={`w-full py-1 mt-1 text-xs font-black rounded transition-all active:scale-95 ${
+                matchWinnerId === awayTeam.id
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : isAwayResolved
+                    ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
+                    : 'bg-slate-50 text-slate-300 cursor-not-allowed'
+              }`}
+            >
+              {matchWinnerId === awayTeam.id ? 'WINNER' : 'PICK'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div className="flex justify-center flex-wrap gap-2 p-3 rounded-xl shadow-lg border border-white/10" style={{ backgroundColor: COLORS.navy }}>
+        {knockoutStages.filter(s => s !== 'TREE').map((s) => (
+          <button
+            key={s}
+            onClick={() => setActiveKnockoutRound(s)}
+            style={{ backgroundColor: s === 'FINAL' ? COLORS.gold : undefined }}
+            className={`px-4 py-2 rounded-full text-xs font-black transition-all shadow-md ${
+              activeKnockoutRound === s
+                ? "bg-white text-slate-900 scale-105 ring-2 ring-yellow-400"
+                : s === 'FINAL' 
+                  ? "text-slate-900 hover:bg-yellow-400/80"
+                  : "bg-slate-800/50 text-slate-300 hover:bg-slate-700 hover:text-white"
+            }`}
+          >
+            {t[s.toLowerCase()] || s}
+          </button>
+        ))}
+      </div>
+
+      {activeKnockoutRound === 'FINAL' && (
+        <div className="bg-white rounded-xl shadow-xl p-6 text-center border-4 border-yellow-400">
+            <h2 className="text-xl font-black text-slate-900 mb-4">{t.championPick}</h2>
+            
+            {champion ? (
+                <div className="flex flex-col items-center">
+                    <img src={getFlagUrl(champion)} className="w-16 h-12 object-cover rounded shadow-md mb-2" />
+                    <span className="text-lg font-extrabold text-green-700">{getTeamName(champion, teamsMap[champion]?.name || champion)}</span>
+                    <p className="text-xs text-slate-500 mt-2">Predicted Winner of the Tournament</p>
+                </div>
+            ) : (
+                <p className="text-slate-500">{t.predictChampion || 'Predict the Final winner to set your champion pick!'}</p>
+            )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {isTournamentComplete ? (
+          stageMatches.length > 0 ? (
+            stageMatches.map(match => (
+              <MatchCard key={match.id} match={match} />
+            ))
+          ) : (
+             <div className="md:col-span-2 bg-white p-6 rounded-xl text-center text-slate-500">
+                <p>{t.predictKnockout || 'Select a match to predict the winner.'}</p>
+            </div>
+          )
+        ) : (
+          <div className="md:col-span-2 bg-white p-6 rounded-xl text-center border-2 border-orange-400/50">
+            <p className="font-bold text-orange-600">{t.completeGroupPredictions || 'Complete all group stage predictions to unlock the Knockout Bracket!'}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
