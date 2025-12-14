@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import { useAppData } from "../hooks/useAppData";
 import { usePrediction } from "../hooks/usePrediction";
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator";
-// ✅ UNCOMMENTED: Import the bracket calculator
 import { calculateBracketMapping } from "../lib/bracket"; 
 import { getFlagUrl } from "../lib/flags";
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants";
@@ -122,7 +121,7 @@ export default function Home() {
   // @ts-ignore
   const thirdPlaceTable = calculateThirdPlaceStandings(allGroupMatches, predictions);
   
-  // ✅ ADDED: Calculate the real bracket mapping based on current predictions
+  // Calculate the real bracket mapping based on current predictions
   const bracketMap = useMemo(() => {
       // Safety check: ensure we have data before calculating
       if (!matches || matches.length === 0) return {} as BracketMap;
