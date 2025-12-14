@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { Match, Prediction, GlobalPredictions, LeaderboardEntry, UserData } from '../lib/types'; 
 import { Dispatch, SetStateAction } from 'react';
-import { generateGroupPredictions } from '../lib/simulation'; // ✅ Imported Logic
+import { generateGroupPredictions } from '../lib/simulation'; 
 
 type SetPredictionsType = Dispatch<SetStateAction<Record<number, Prediction>>>;
 
@@ -43,22 +43,19 @@ export function usePrediction(
         // @ts-ignore
         newPred[field] = value;
 
-        // Smart 0-0 Logic
         if (field === "home_score" || field === "away_score") {
              const otherField = field === "home_score" ? "away_score" : "home_score";
              if (newPred[otherField] == null) newPred[otherField] = 0;
              newPred.winner_id = null;
         }
 
-        // Optimistic Update
         setPredictions((prev) => ({ ...prev, [matchId]: newPred }));
 
-        // Database Update
-        // ✅ The onConflict here MUST match the unique constraint we just added in SQL
+        // Upsert single prediction
         const { error } = await supabase.from('predictions').upsert([newPred], { onConflict: 'user_id, match_id' });
 
         if (error) {
-            console.error("🔥 DB Error:", error);
+            console.error("Single Save Error:", error);
             setSaveStatus('idle'); 
         } else {
             setSaveStatus('saved');
@@ -79,14 +76,12 @@ export function usePrediction(
         if (isGroupMode) {
             setSaveStatus('saving');
             
-            // ✅ Use the separated logic
+            // Use logic from simulation.ts
             const newPredictionsArray = generateGroupPredictions(matches, user.id, boostedTeams);
             
-            // Convert array to map for state update
             const newPredictionsMap: Record<number, Prediction> = {};
             newPredictionsArray.forEach(p => { newPredictionsMap[p.match_id] = p; });
 
-            // Optimistic UI Update
             setPredictions(prev => ({ ...prev, ...newPredictionsMap }));
 
             // Bulk Save
@@ -95,7 +90,8 @@ export function usePrediction(
             if (error) {
                 console.error("AutoFill Failed:", error);
                 setSaveStatus('idle');
-                alert("Error saving simulation. Please try again.");
+                // 🔥 SHOW THE REAL ERROR MESSAGE ON SCREEN
+                alert(`Save Failed: ${error.message || JSON.stringify(error)}`);
             } else {
                 setSaveStatus('saved');
                 setTimeout(() => setSaveStatus('idle'), 2000);
@@ -106,9 +102,8 @@ export function usePrediction(
 
     }, [matches, user, supabase, setPredictions]);
 
-    // 3. REVEAL (Placeholder)
     const handleReveal = useCallback((matchId: number, rivalId: string) => {
-        console.log("Reveal feature coming soon", matchId, rivalId);
+        console.log("Reveal", matchId, rivalId);
     }, []);
 
     return {

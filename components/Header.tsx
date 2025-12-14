@@ -207,7 +207,6 @@ export default function Header({
       </div>
 
       {isMenuOpen && (
-        // ✅ ADDED: max-h-[80vh] overflow-y-auto to allow scrolling the menu on small screens
         <div className="absolute top-full left-0 right-0 bg-slate-800 border-t border-slate-700 shadow-2xl p-6 animate-in slide-in-from-top-2 duration-200 flex flex-col gap-6 text-sm z-30 max-h-[80vh] overflow-y-auto">
            <div className="flex items-center justify-between pb-4 border-b border-slate-700">
               <div><p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Player Profile</p><p className="font-bold text-xl text-white">{user?.full_name || "Guest"}</p><p className="text-[10px] text-slate-400 mt-1">{predictionCount}/{progressTotal} Predictions</p></div>
@@ -288,9 +287,28 @@ export default function Header({
         </div>
       )}
 
+      {/* SAVING TOAST NOTIFICATION (Bottom Right) */}
       {visibleSaveStatus !== 'idle' && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur text-slate-900 px-4 py-1.5 rounded-full shadow-xl z-50 flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-4">
-           {visibleSaveStatus === 'saving' ? (<><div className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" /> Saving...</>) : (<><span className="text-green-600">✓</span> Saved</>)}
+        <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-4 fade-in duration-300">
+           <div className={`px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 font-bold text-sm border backdrop-blur-md ${
+               visibleSaveStatus === 'saving' 
+                 ? 'bg-slate-900/90 text-white border-slate-700' 
+                 : 'bg-green-500 text-white border-green-400'
+           }`}>
+               {visibleSaveStatus === 'saving' ? (
+                   <>
+                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                     <span>Saving...</span>
+                   </>
+               ) : (
+                   <>
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                     </svg>
+                     <span>Saved</span>
+                   </>
+               )}
+           </div>
         </div>
       )}
     </header>
