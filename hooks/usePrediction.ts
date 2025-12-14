@@ -13,27 +13,17 @@ const calculateScore = (
     isOpponentBoosted: boolean,
     isHome: boolean
 ) => {
-    // 1. Base Expectancy (Average goals per game ~1.3)
     let lambda = 1.3;
-
-    // 2. Ranking Influence (Diff of 10 ranks = ~0.25 goal swing)
-    const rankDiff = opponentRank - myRank; // Positive if I am better (lower rank number)
+    const rankDiff = opponentRank - myRank; 
     lambda += (rankDiff / 40);
-
-    // 3. Home Advantage (Slight bump)
     if (isHome) lambda += 0.15;
-
-    // 4. THE BOOST (The "Helping Hand")
-    if (isMyTeamBoosted) lambda += 1.2; // Huge advantage
-    if (isOpponentBoosted) lambda -= 0.5; // Good defense if opponent is boosted
-
-    // 5. Safety Floors and Chaos
-    if (lambda < 0.2) lambda = 0.2; // Always a chance to score
+    if (isMyTeamBoosted) lambda += 1.2; 
+    if (isOpponentBoosted) lambda -= 0.5; 
+    if (lambda < 0.2) lambda = 0.2; 
     
-    // Poisson-like distribution simulation (simplified)
     const random = Math.random();
     let score = 0;
-    if (random > 0.95) score = Math.floor(lambda + 2); // Outlier high score
+    if (random > 0.95) score = Math.floor(lambda + 2); 
     else if (random > 0.6) score = Math.round(lambda + 0.5);
     else score = Math.round(lambda);
 
@@ -77,21 +67,15 @@ export function usePrediction(
         // @ts-ignore
         newPred[field] = value;
 
-        // Smart 0-0 Logic
         if (field === "home_score" || field === "away_score") {
              const otherField = field === "home_score" ? "away_score" : "home_score";
-             if (newPred[otherField] == null) {
-                 newPred[otherField] = 0;
-             }
+             if (newPred[otherField] == null) newPred[otherField] = 0;
              newPred.winner_id = null;
         }
 
-        setPredictions((prev) => ({
-            ...prev,
-            [matchId]: newPred
-        }));
+        setPredictions((prev) => ({ ...prev, [matchId]: newPred }));
 
-        const { error } = await supabase.from('predictions').upsert([newPred]);
+        const { error } = await supabase.from('predictions').upsert([newPred], { onConflict: 'user_id, match_id' });
 
         if (error) {
             console.error("🔥 DB Error:", error);
@@ -103,25 +87,24 @@ export function usePrediction(
 
     }, [predictions, setPredictions, user, supabase]); 
 
-    // 2. REVEAL RIVAL (Placeholder logic)
+    // 2. REVEAL RIVAL
     const handleReveal = useCallback((matchId: number, rivalId: string) => {
         console.log("Reveal feature coming soon", matchId, rivalId);
     }, []);
 
-    // 3. AUTO-FILL / HELPING HAND (Group Stage)
+    // 3. AUTO-FILL / HELPING HAND
     const handleAutoFill = useCallback(async (boostedTeams: string[], currentTab: string) => {
-        if (!user || !user.id) return;
+        if (!user || !user.id) {
+            alert("Please log in to use the Helping Hand.");
+            return;
+        }
 
-        // Determine Mode: Group vs Knockout
-        // (Currently focused on Group Stage logic as requested)
         const isGroupMode = currentTab === "GROUPS" || (currentTab.length === 1 && currentTab.match(/[A-L]/));
 
         if (isGroupMode) {
-            if (!confirm(`Generate predictions for ALL Group Stage matches?\n\nBoosted Teams: ${boostedTeams.join(", ") || "None"}`)) return;
-
+            // ✅ Removed confirm() dialog per request
             setSaveStatus('saving');
             
-            // Filter only Group matches
             const groupMatches = matches.filter(m => m.stage === 'GROUP' && m.home_team && m.away_team);
             const newPredictions: Prediction[] = [];
             const newPredictionsMap: Record<number, Prediction> = {};
@@ -135,7 +118,6 @@ export function usePrediction(
                 const isHomeBoosted = boostedTeams.includes(homeId);
                 const isAwayBoosted = boostedTeams.includes(awayId);
 
-                // Run Simulation
                 const hScore = calculateScore(homeRank, awayRank, isHomeBoosted, isAwayBoosted, true);
                 const aScore = calculateScore(awayRank, homeRank, isAwayBoosted, isHomeBoosted, false);
 
@@ -151,11 +133,10 @@ export function usePrediction(
                 newPredictionsMap[m.id] = predObj;
             });
 
-            // 1. Optimistic Update (Instant UI change)
             setPredictions(prev => ({ ...prev, ...newPredictionsMap }));
 
-            // 2. Batch Save to Supabase
-            const { error } = await supabase.from('predictions').upsert(newPredictions);
+            // ✅ ADDED: { onConflict: 'user_id, match_id' } to fix the save error
+            const { error } = await supabase.from('predictions').upsert(newPredictions, { onConflict: 'user_id, match_id' });
 
             if (error) {
                 console.error("AutoFill Failed:", error);
