@@ -47,7 +47,6 @@ export function useAppData() {
 
 
             // 2. Fetch Static Match & Team Data
-            // 🔥 UPDATE: Added 'fifa_ranking' to the selection below
             const { data: matchData, error: matchError } = await supabase
                 .from('matches')
                 .select(`
@@ -78,9 +77,10 @@ export function useAppData() {
             
 
             // 3. Fetch all Predictions (for user and global)
+            // ✅ FIX: We join 'profiles', not 'user_id'
             const { data: allPreds, error: allPredError } = await supabase
                 .from('predictions')
-                .select(`*, user:user_id (id, full_name)`);
+                .select(`*, user:profiles (id, full_name)`);
 
             if (allPreds) {
                 const globalPredMap: GlobalPredictions = {};
@@ -88,6 +88,7 @@ export function useAppData() {
 
                 allPreds.forEach((p: any) => {
                     const userId = p.user_id;
+                    // Handle case where user relation might be null
                     const userName = p.user?.full_name || 'Anonymous';
                     
                     if (!globalPredMap[userId]) {
@@ -128,7 +129,6 @@ export function useAppData() {
         fetchInitialData();
     }, [supabase]); 
 
-    // --- Return Values ---
     return {
         supabase,
         user,

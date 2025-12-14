@@ -207,9 +207,10 @@ export default function Header({
       </div>
 
       {isMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-slate-800 border-t border-slate-700 shadow-2xl p-6 animate-in slide-in-from-top-2 duration-200 flex flex-col gap-6 text-sm z-30">
+        // ✅ ADDED: max-h-[80vh] overflow-y-auto to allow scrolling the menu on small screens
+        <div className="absolute top-full left-0 right-0 bg-slate-800 border-t border-slate-700 shadow-2xl p-6 animate-in slide-in-from-top-2 duration-200 flex flex-col gap-6 text-sm z-30 max-h-[80vh] overflow-y-auto">
            <div className="flex items-center justify-between pb-4 border-b border-slate-700">
-              <div><p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Player Profile</p><p className="font-bold text-xl text-white">{user?.displayName || "Guest"}</p><p className="text-[10px] text-slate-400 mt-1">{predictionCount}/{progressTotal} Predictions</p></div>
+              <div><p className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Player Profile</p><p className="font-bold text-xl text-white">{user?.full_name || "Guest"}</p><p className="text-[10px] text-slate-400 mt-1">{predictionCount}/{progressTotal} Predictions</p></div>
               <div className="flex items-center gap-4"><div className="flex flex-col items-center gap-1"><ProgressRing radius={20} stroke={3} progress={predictionCount} total={progressTotal} /><span className="text-[9px] text-slate-400">Picks</span></div><div className="flex flex-col items-center gap-1 border-l border-slate-600 pl-4"><ProgressRing radius={20} stroke={3} progress={matchesCompletedCount} total={progressTotal} /><span className="text-[9px] text-slate-400">Live</span></div></div>
            </div>
            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700"><span className="font-bold text-slate-300 text-xs">{t.menuNicknames}</span><button onClick={() => setShowNicknames(!showNicknames)} className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${showNicknames ? 'bg-green-500 justify-end' : 'bg-slate-600 justify-start'}`}><div className="w-4 h-4 bg-white rounded-full shadow-sm" /></button></div>
