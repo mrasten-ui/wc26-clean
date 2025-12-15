@@ -1,3 +1,5 @@
+// components/ScoreStepper.tsx
+
 "use client";
 
 interface ScoreStepperProps {
@@ -14,22 +16,22 @@ export default function ScoreStepper({ value, onChange, disabled = false }: Scor
   const handleIncrement = () => {
     if (disabled) return;
     // If empty, set to 0. If number, add 1.
-    if (value === null || value === undefined) {
-      onChange(0);
-    } else {
-      onChange(value + 1);
-    }
+    const current = (value === null || value === undefined) ? -1 : value;
+    onChange(current + 1);
   };
 
   const handleDecrement = () => {
     if (disabled) return;
-    // If empty, set to 0. This enforces the "go to 0-0" on the first click.
-    if (value === null || value === undefined) {
-      onChange(0);
-      return;
-    }
     // Standard decrement (min 0)
-    if (value > 0) onChange(value - 1);
+    const current = (value === null || value === undefined) ? 0 : value; // Treat empty as 0 for this check
+    
+    if (current > 0) {
+      onChange(current - 1);
+    } else if (current === 0) {
+      // You can decide if clicking down on 0 should make it null/empty, but sticking to 0 for stability
+      onChange(0);
+    }
+    // Note: The logic to set the OPPONENT to 0 is now in GroupStage.tsx
   };
 
   return (

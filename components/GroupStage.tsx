@@ -30,9 +30,13 @@ export default function GroupStage({
   getTeamName
 }: GroupStageProps) {
   
+  // ✅ 1. DEFINE MISSING VARIABLES HERE
   const groupMatches = matchesByGroup[activeTab] || [];
+  
+  // Sort matches by date
   const sortedMatches = [...groupMatches].sort((a, b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
 
+  // Navigation Logic
   const currentGroupIndex = GROUPS.indexOf(activeTab);
   const nextGroup = GROUPS[currentGroupIndex + 1];
   
@@ -55,9 +59,22 @@ export default function GroupStage({
           const pred = predictions[match.id] || { home_score: null, away_score: null };
           
           const isLocked = match.status === 'FINISHED' || match.status === 'IN_PLAY';
-          
-          // ✅ RESTORED: Check if predicted to apply NEON GLOW
           const isPredicted = pred.home_score !== null && pred.away_score !== null && pred.home_score !== undefined && pred.away_score !== undefined;
+
+          // ✅ 2. 0-0 LOGIC HANDLER
+          // This ensures that clicking one side forces the other side to 0 if it's empty
+          const handleScoreChange = (side: 'home_score' | 'away_score', val: number) => {
+             const rivalSide = side === 'home_score' ? 'away_score' : 'home_score';
+             const rivalScore = pred[rivalSide];
+             
+             // If rival score is empty/null, force it to 0 immediately
+             if (rivalScore === null || rivalScore === undefined) {
+                 handlePredict(match.id, rivalSide, 0);
+             }
+             
+             // Update the actual score clicked
+             handlePredict(match.id, side, val);
+          };
 
           const matchDate = new Date(match.kickoff_time).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
           const matchTime = new Date(match.kickoff_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -67,7 +84,7 @@ export default function GroupStage({
               key={match.id} 
               className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all duration-300 ${
                   isPredicted 
-                  ? 'border-green-400 ring-1 ring-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]' // Neon Effect
+                  ? 'border-green-400 ring-1 ring-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]' 
                   : 'border-slate-200'
               }`}
             >
@@ -89,13 +106,13 @@ export default function GroupStage({
                   <div className="flex items-center gap-4">
                       <ScoreStepper 
                         value={pred.home_score} 
-                        onChange={(val) => handlePredict(match.id, 'home_score', val)} 
+                        onChange={(val) => handleScoreChange('home_score', val)} 
                         disabled={isLocked} 
                       />
                       <span className="text-slate-300 font-black text-lg mt-2">-</span>
                       <ScoreStepper 
                         value={pred.away_score} 
-                        onChange={(val) => handlePredict(match.id, 'away_score', val)} 
+                        onChange={(val) => handleScoreChange('away_score', val)} 
                         disabled={isLocked} 
                       />
                   </div>
@@ -110,6 +127,8 @@ export default function GroupStage({
           );
         })}
       </div>
+
+      {/* Footer Navigation Button */}
       <div className="pt-6 border-t border-slate-200/50">
           <button 
              onClick={handleNext}
