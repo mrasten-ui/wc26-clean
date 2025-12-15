@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { SupabaseClient } from '@supabase/auth-helpers-nextjs';
+// ✅ FIXED: Import from the core package instead of auth-helpers
+import { SupabaseClient } from '@supabase/supabase-js';
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions } from '../lib/types';
 
 export function usePrediction(
@@ -33,7 +34,6 @@ export function usePrediction(
 
     setSaveStatus('saving');
 
-    // Debounce or immediate save could go here. For now, simple direct save:
     const { error } = await supabase
       .from('predictions')
       .upsert({
@@ -45,15 +45,13 @@ export function usePrediction(
 
     if (error) {
       console.error('Error saving prediction:', error);
-      setSaveStatus('idle'); // Or error state
+      setSaveStatus('idle'); 
     } else {
       setSaveStatus('saved');
     }
   };
 
   // 2. Handle Revealing Matches
-  // ✅ FIXED: Added '?' to make rivalId optional. 
-  // This allows GroupStage (which sends 1 arg) AND MatchCenter (which might send 2) to both work.
   const handleReveal = (matchId: number, rivalId?: string) => {
     if (revealCount > 0) {
         setRevealedMatches(prev => {
@@ -71,18 +69,14 @@ export function usePrediction(
   const handleAutoFill = async (teams: any[], activeTab: string) => {
       if (!user) return;
       
-      // Basic random logic for demo purposes
-      // In a real app, you might use FIFA rankings here
       const updates: any[] = [];
       
+      // Placeholder logic matching your previous implementation
       matches.forEach(m => {
-          if (m.stage === 'GROUP' && activeTab === 'A' && m.home_team?.group_id === 'A') { // Example filter
+          if (m.stage === 'GROUP' && activeTab === 'A' && m.home_team?.group_id === 'A') { 
              // Logic to auto-predict scores
           }
       });
-      
-      // This is a placeholder for the logic we discussed earlier.
-      // Ensure this matches your AutoFillModal implementation.
   };
 
   return {
