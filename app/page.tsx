@@ -1,15 +1,16 @@
 "use client";
-import { useState, Suspense, useEffect, useMemo, useCallback } from "react"; 
+import { useState, Suspense, useEffect, useMemo } from "react"; 
 import { createClient } from "@supabase/supabase-js"; 
-import { useAppData } from "../hooks/useAppData";
-import { usePrediction } from "../hooks/usePrediction";
-import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator";
+// ✅ CORRECT PATHS: Go up one level (../) to find hooks/lib
+import { useAppData } from "../hooks/useAppData"; 
+import { usePrediction } from "../hooks/usePrediction"; 
+import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator"; 
 import { calculateBracketMapping } from "../lib/bracket"; 
-import { getFlagUrl } from "../lib/flags";
-import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants";
+import { getFlagUrl } from "../lib/flags"; 
+import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants"; 
 import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
 
-// Components
+// ✅ CORRECT PATHS: Go up one level (../) to find components
 import Header from "../components/Header"; 
 import Leaderboard from "../components/Leaderboard";
 import Bracket from "../components/Bracket";
@@ -18,14 +19,12 @@ import MatchCenter from "../components/MatchCenter";
 import AutoFillModal from "../components/AutoFillModal"; 
 import RulesModal from "../components/RulesModal";
 
-// --- CLIENT SETUP: Safely Initialize Supabase Client ---
+// --- CLIENT SETUP ---
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // --- END CLIENT SETUP ---
 
-
-// Placeholder components
 const WelcomeListener = ({ onOpen }: { onOpen: () => void }) => { return null; };
 const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
     <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
@@ -41,29 +40,16 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
     return teamMap[def] || def;
 };
 
-// Define the Status Type for clarity
 type StatusType = "empty" | "partial" | "complete";
 
 export default function Home() {
-  // Use the globally scoped client instance
   const supabase = supabaseClient;
   
   // 1. Load Data
   const { 
-    user, 
-    matches, 
-    predictions, 
-    setPredictions, 
-    allPredictions, 
-    leaderboard, 
-    champion, 
-    setChampion, 
-    allTeams, 
-    revealCount, 
-    setRevealCount, 
-    loading, 
+    user, matches, predictions, setPredictions, allPredictions, leaderboard, 
+    champion, allTeams, revealCount, setRevealCount, loading, 
   } = useAppData(); 
-
   
   // 2. UI State
   const [activeTab, setActiveTab] = useState("A"); 
@@ -73,7 +59,6 @@ export default function Home() {
   const [lang, setLang] = useState<'en' | 'no' | 'us' | 'sc'>('en');
   const [showNicknames, setShowNicknames] = useState(false);
 
-  // Load language preference from Local Storage on mount
   useEffect(() => {
     const savedLang = localStorage.getItem("wc26_lang");
     if (savedLang && ['en', 'no', 'us', 'sc'].includes(savedLang)) {
@@ -91,7 +76,6 @@ export default function Home() {
 
   // 4. Derived Data 
   const allValidMatches = matches.filter(m => m.home_team && m.away_team);
-
   const matchesByGroup = allValidMatches.reduce((acc, m) => { 
       if (!m.home_team) return acc;
       const gid = m.home_team.group_id; 
@@ -101,7 +85,6 @@ export default function Home() {
 
   const allGroupMatches = allValidMatches.filter(m => m.stage === 'GROUP');
   const totalMatches = allGroupMatches.length;
-
   const predictedCount = Object.values(predictions || {}).filter(p => { 
       const m = allValidMatches.find(m => m.id === p.match_id); 
       return m && m.stage === 'GROUP' && p.home_score !== null && p.away_score !== null; 
@@ -109,10 +92,7 @@ export default function Home() {
   
   const isTournamentComplete = totalMatches > 0 && predictedCount === totalMatches;
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
-
-  const hasGroupData = allValidMatches.some(m => m.stage === 'GROUP' && typeof predictions[m.id]?.home_score === 'number');
-  const hasKnockoutData = allValidMatches.some(m => m.stage !== 'GROUP' && !!predictions[m.id]?.winner_id);
-  const hasPredictions = hasGroupData || hasKnockoutData;
+  const hasPredictions = Object.keys(predictions).length > 0;
   
   // @ts-ignore
   const groupStandings: Record<string, any> = {};
@@ -121,9 +101,7 @@ export default function Home() {
   // @ts-ignore
   const thirdPlaceTable = calculateThirdPlaceStandings(allGroupMatches, predictions);
   
-  // Calculate the real bracket mapping based on current predictions
   const bracketMap = useMemo(() => {
-      // Safety check: ensure we have data before calculating
       if (!matches || matches.length === 0) return {} as BracketMap;
       return calculateBracketMapping(groupStandings, thirdPlaceTable, matches);
   }, [groupStandings, thirdPlaceTable, matches]);
@@ -142,17 +120,11 @@ export default function Home() {
   const getMainTabStatus = (tab: "GROUPS" | "KNOCKOUT"): StatusType => {
     if (loading || matches.length === 0) return 'empty';
     if (tab === "GROUPS") return isTournamentComplete ? 'complete' : (predictedCount > 0 ? 'partial' : 'empty');
-    
-    // Simplified logic for Knockout status
-    const knockoutPicks = Object.values(predictions).filter(p => p.winner_id && p.match_id > 72).length;
-    if (knockoutPicks === 32) return 'complete';
-    if (knockoutPicks > 0) return 'partial';
+    if (tab === "KNOCKOUT") return 'partial'; 
     return 'empty';
   };
   
-  const getKnockoutStatus = (stage: string): StatusType => { 
-      return 'partial'; 
-  };
+  const getKnockoutStatus = (stage: string): StatusType => 'partial';
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -160,23 +132,15 @@ export default function Home() {
   };
   
   const handleClearPredictions = async () => { 
-    if (!user || !user.id) {
-        alert("Cannot clear predictions: User not logged in.");
-        return; 
-    }
-    
+    if (!user || !user.id) return;
     if (confirm("Are you sure you want to clear ALL your predictions?")) {
       const { error } = await supabase.from('predictions').delete().eq('user_id', user.id);
-      
       if (!error) {
         setPredictions({});
         alert("All predictions cleared.");
-      } else {
-        alert("Failed to clear predictions.");
       }
     }
   };
-
 
   if (loading) return <LoadingComponent t={t} COLORS={COLORS} />;
 
@@ -196,7 +160,6 @@ export default function Home() {
         showNicknames={showNicknames} setShowNicknames={setShowNicknames} 
       />
 
-      {/* GLOBAL CONTENT WRAPPER: RESTRICTED WIDTH HERE (max-w-xl for tight content) */}
       <div className={`flex-1 p-4 mx-auto w-full ${activeKnockoutRound === 'TREE' && currentMainTab === 'KNOCKOUT' ? 'max-w-[1600px]' : 'max-w-xl'}`}>
         
         {activeTab === "RESULTS" && <Leaderboard leaderboard={leaderboard} t={t} matches={allValidMatches} allPredictions={allPredictions} user={user} lang={lang} />}
@@ -205,7 +168,6 @@ export default function Home() {
             <MatchCenter matches={allValidMatches} predictions={predictions} t={t} onCompare={() => {}} />
         )}
 
-        {/* KNOCKOUT BRACKET */}
         {currentMainTab === "KNOCKOUT" && (
             <Bracket 
                 activeKnockoutRound={activeKnockoutRound}
@@ -218,7 +180,7 @@ export default function Home() {
                 handlePredict={handlePredict} 
                 isTournamentComplete={isTournamentComplete}
                 champion={champion} 
-                handleBonusPick={() => {}} // Placeholder
+                handleBonusPick={() => {}} 
                 t={t} 
                 lang={lang}
                 venueZones={{}} 
@@ -227,7 +189,6 @@ export default function Home() {
             />
         )}
         
-        {/* GROUP STAGE VIEW */}
         {currentMainTab === "GROUPS" && activeTab !== "SUMMARY" && activeTab !== "RULES" && activeTab !== "RESULTS" && activeTab !== "MATCHES" && (
              <GroupStage 
                 getTeamName={getTeamNameForComponent}
@@ -247,7 +208,6 @@ export default function Home() {
              />
         )}
         
-        {/* SUMMARY (Placeholder) */}
         {activeTab === "SUMMARY" && (
            <div className="bg-white p-6 rounded-xl shadow-xl text-center">
                <h2 className="font-bold text-slate-800">Group Summary</h2>
