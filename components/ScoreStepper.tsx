@@ -1,60 +1,57 @@
 "use client";
 
 interface ScoreStepperProps {
-  value: number | null;
+  value: number | null | undefined; // ✅ Allow undefined to prevent crashes
   onChange: (val: number) => void;
   disabled?: boolean;
 }
 
 export default function ScoreStepper({ value, onChange, disabled = false }: ScoreStepperProps) {
   
-  // If value is null, show "-", otherwise show the number (even if 0)
-  const displayValue = value === null ? "-" : value;
+  // Safe display: If null or undefined, show "-"
+  const displayValue = (value === null || value === undefined) ? "-" : value;
 
   const handleIncrement = () => {
     if (disabled) return;
-    // If empty, start at 0. If number, go up.
-    if (value === null) {
-      onChange(0);
-    } else {
-      onChange(value + 1);
-    }
+    // Treat null/undefined as -1 so the next step is 0
+    const current = (value === null || value === undefined) ? -1 : value;
+    onChange(current + 1);
   };
 
   const handleDecrement = () => {
     if (disabled) return;
-    // If empty, start at 0.
-    if (value === null) {
+    // If empty, force to 0.
+    if (value === null || value === undefined) {
       onChange(0);
       return;
     }
-    // Prevent going below 0
-    if (value > 0) {
-      onChange(value - 1);
-    }
+    // Standard decrement
+    if (value > 0) onChange(value - 1);
   };
 
   return (
     <div className={`flex flex-col items-center gap-0.5 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      {/* BUTTON TOP (UP) - Bigger Touch Target */}
+      {/* UP BUTTON */}
       <button 
         onClick={handleIncrement}
         disabled={disabled}
-        className="w-12 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-t-xl transition-colors text-xs active:bg-slate-300 active:scale-95"
+        type="button"
+        className="w-12 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-t-xl transition-colors text-xs active:bg-slate-300"
       >
         ▲
       </button>
       
-      {/* SCORE DISPLAY - Bigger Font & Box */}
-      <div className={`w-12 h-12 flex items-center justify-center font-black text-2xl border-y border-slate-200 bg-white ${value === null ? 'text-slate-300' : 'text-slate-900'}`}>
+      {/* SCORE BOX */}
+      <div className={`w-12 h-12 flex items-center justify-center font-black text-2xl border-y border-slate-200 bg-white ${displayValue === '-' ? 'text-slate-300' : 'text-slate-900'}`}>
         {displayValue}
       </div>
 
-      {/* BUTTON BOTTOM (DOWN) - Bigger Touch Target */}
+      {/* DOWN BUTTON */}
       <button 
         onClick={handleDecrement}
         disabled={disabled}
-        className="w-12 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-b-xl transition-colors text-xs active:bg-slate-300 active:scale-95"
+        type="button"
+        className="w-12 h-9 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-b-xl transition-colors text-xs active:bg-slate-300"
       >
         ▼
       </button>

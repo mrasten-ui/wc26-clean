@@ -9,7 +9,8 @@ interface GroupStageProps {
   setActiveTab: (tab: string) => void;
   matchesByGroup: Record<string, Match[]>;
   predictions: Record<number, Prediction>;
-  handlePredict: (matchId: number, field: string, value: any) => void;
+  // ✅ FIXED: Value type relaxed to 'any'
+  handlePredict: (matchId: number, field: string, value: any) => void; 
   leaderboard: LeaderboardEntry[];
   allPredictions: GlobalPredictions;
   user: UserData | null;
@@ -54,54 +55,38 @@ export default function GroupStage({
           const awayTeamName = getTeamName(match.away_team_id || '', match.away_team?.name || 'Away');
           const pred = predictions[match.id] || { home_score: null, away_score: null };
           
+          // ✅ FIXED: Now valid because MatchStatus includes IN_PLAY
           const isLocked = match.status === 'FINISHED' || match.status === 'IN_PLAY';
-          const isPredicted = pred.home_score !== null && pred.away_score !== null;
-
           const matchDate = new Date(match.kickoff_time).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
           const matchTime = new Date(match.kickoff_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           return (
-            <div 
-              key={match.id} 
-              className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all duration-300 ${
-                  isPredicted 
-                  ? 'border-green-400 ring-1 ring-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]' // ✅ RESTORED NEON GLOW
-                  : 'border-slate-200'
-              }`}
-            >
-               {/* Header */}
+            <div key={match.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                <div className="bg-slate-50/80 px-4 py-2 flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 border-b border-slate-100 tracking-wider">
                   <span>{matchDate} <span className="text-slate-300 mx-1">|</span> {matchTime}</span>
                   <span className="text-slate-400">{match.venue}</span>
                </div>
-
-               {/* Match Row */}
                <div className="flex items-center justify-between p-4">
-                  {/* Home Team */}
                   <div className="flex-1 flex flex-col items-center gap-2">
-                     <img src={getFlagUrl(match.home_team_id || '')} className="w-12 h-8 object-cover rounded shadow-sm ring-1 ring-black/5" />
-                     <span className={`text-xs font-bold text-center leading-tight ${isPredicted ? 'text-green-900' : 'text-slate-700'}`}>{homeTeamName}</span>
+                     <img src={getFlagUrl(match.home_team_id || '')} className="w-10 h-7 object-cover rounded shadow-sm ring-1 ring-black/5" />
+                     <span className="text-xs font-bold text-slate-700 text-center leading-tight">{homeTeamName}</span>
                   </div>
-
-                  {/* Score Inputs */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                       <ScoreStepper 
                         value={pred.home_score} 
                         onChange={(val) => handlePredict(match.id, 'home_score', val)} 
                         disabled={isLocked} 
                       />
-                      <span className="text-slate-300 font-black text-lg mt-2">-</span>
+                      <span className="text-slate-300 font-black text-xs">-</span>
                       <ScoreStepper 
                         value={pred.away_score} 
                         onChange={(val) => handlePredict(match.id, 'away_score', val)} 
                         disabled={isLocked} 
                       />
                   </div>
-
-                  {/* Away Team */}
                   <div className="flex-1 flex flex-col items-center gap-2">
-                     <img src={getFlagUrl(match.away_team_id || '')} className="w-12 h-8 object-cover rounded shadow-sm ring-1 ring-black/5" />
-                     <span className={`text-xs font-bold text-center leading-tight ${isPredicted ? 'text-green-900' : 'text-slate-700'}`}>{awayTeamName}</span>
+                     <img src={getFlagUrl(match.away_team_id || '')} className="w-10 h-7 object-cover rounded shadow-sm ring-1 ring-black/5" />
+                     <span className="text-xs font-bold text-slate-700 text-center leading-tight">{awayTeamName}</span>
                   </div>
                </div>
             </div>

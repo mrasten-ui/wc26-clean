@@ -1,6 +1,5 @@
 import { useState } from 'react';
-// ✅ FIXED: Import from the core package instead of auth-helpers
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js'; // Use core package
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions } from '../lib/types';
 
 export function usePrediction(
@@ -52,6 +51,7 @@ export function usePrediction(
   };
 
   // 2. Handle Revealing Matches
+  // ✅ FIXED: Added '?' to rivalId so it is optional.
   const handleReveal = (matchId: number, rivalId?: string) => {
     if (revealCount > 0) {
         setRevealedMatches(prev => {
@@ -67,16 +67,7 @@ export function usePrediction(
 
   // 3. Handle Auto-Fill Logic
   const handleAutoFill = async (teams: any[], activeTab: string) => {
-      if (!user) return;
-      
-      const updates: any[] = [];
-      
-      // Placeholder logic matching your previous implementation
-      matches.forEach(m => {
-          if (m.stage === 'GROUP' && activeTab === 'A' && m.home_team?.group_id === 'A') { 
-             // Logic to auto-predict scores
-          }
-      });
+      // Placeholder logic
   };
 
   return {
