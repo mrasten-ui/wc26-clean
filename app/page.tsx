@@ -1,10 +1,9 @@
 "use client";
 import { useState, Suspense, useEffect, useMemo } from "react"; 
-// ❌ Removed: import { createClient } from "@supabase/supabase-js"; 
-// ✅ ADDED: Import the shared singleton client
+// ✅ IMPORT SHARED CLIENT (Go up to lib)
 import { supabase } from "../lib/supabase"; 
 
-// ✅ Correct Relative Paths (../)
+// ✅ CORRECT PATHS: Go up one level (../) to find these folders
 import { useAppData } from "../hooks/useAppData"; 
 import { usePrediction } from "../hooks/usePrediction"; 
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator"; 
@@ -13,7 +12,7 @@ import { getFlagUrl } from "../lib/flags";
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants"; 
 import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
 
-// Components
+// ✅ COMPONENTS (Go up one level)
 import Header from "../components/Header"; 
 import Leaderboard from "../components/Leaderboard";
 import Bracket from "../components/Bracket";
@@ -21,10 +20,7 @@ import GroupStage from "../components/GroupStage";
 import MatchCenter from "../components/MatchCenter";
 import AutoFillModal from "../components/AutoFillModal"; 
 import RulesModal from "../components/RulesModal";
-// Keep DebugSaver for final verification (you can remove it later)
-import DebugSaver from "../components/DebugSaver"; 
-
-// ❌ Removed: Client Setup Block (SUPABASE_URL, etc.) - We use the import now.
+// We removed DebugSaver since we are starting fresh
 
 // Placeholder components
 const WelcomeListener = ({ onOpen }: { onOpen: () => void }) => { return null; };
@@ -45,7 +41,6 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
 type StatusType = "empty" | "partial" | "complete";
 
 export default function Home() {
-  // ✅ We now use the imported 'supabase' client directly.
   
   // 1. Load Data
   const { 
@@ -69,7 +64,7 @@ export default function Home() {
   }, []);
 
   // 3. Handle Logic 
-  // ✅ PASS THE SHARED 'supabase' CLIENT HERE
+  // ✅ PASS THE SHARED CLIENT
   const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
     supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
@@ -232,10 +227,6 @@ export default function Home() {
           t={t} 
       />
       <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} t={t} lang={lang} />
-      
-      {/* Verify your fix with this debugger */}
-      <DebugSaver user={user} />
-      
     </div>
   );
 }
