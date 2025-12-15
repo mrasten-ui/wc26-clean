@@ -1,11 +1,10 @@
 "use client";
-import { useState, useEffect, useRef } from "react"; // ✅ Added hooks for scroll detection
+import { useState, useEffect, useRef } from "react";
 import { Match, Prediction, LeaderboardEntry, UserData, GlobalPredictions } from "../lib/types";
 import { getFlagUrl } from "../lib/flags";
 import { COLORS, GROUPS } from "../lib/constants";
 import ScoreStepper from "./ScoreStepper";
 
-// Define the interface for the standings data
 interface Standing {
   teamId: string;
   points: number;
@@ -62,34 +61,32 @@ export default function GroupStage({
       }
   };
 
-  // --- SCROLL DETECTION LOGIC ---
+  // --- SCROLL DETECTION LOGIC (FIXED) ---
   const [showSticky, setShowSticky] = useState(false);
-  const tableRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null); // Watch this invisible line, not the whole table
 
   useEffect(() => {
       const observer = new IntersectionObserver(
           ([entry]) => {
-              // Show banner ONLY if table is out of view (isIntersecting is false) 
-              // AND we have scrolled down past it (boundingClientRect.top is negative)
-              const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-              setShowSticky(isScrolledPast);
+              // If the trigger line is NOT visible, and it's above the viewport (top < 0),
+              // then we have scrolled past the start of the table.
+              const isPastTableTop = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+              setShowSticky(isPastTableTop);
           },
-          { threshold: 0 } // Trigger as soon as 1 pixel of the table leaves the view
+          { threshold: 0, rootMargin: "-120px 0px 0px 0px" } // Offset for header height
       );
 
-      if (tableRef.current) observer.observe(tableRef.current);
+      if (triggerRef.current) observer.observe(triggerRef.current);
       return () => observer.disconnect();
-  }, [activeTab]); // Re-run when tab changes
+  }, [activeTab]);
 
-  // --- Sticky Banner Component (Top Position) ---
+  // --- Sticky Banner Component ---
   const StickyBanner = () => (
       <div 
-        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 z-30 shadow-xl transition-all duration-500 ease-in-out ${
-            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 shadow-xl transition-all duration-300 ease-in-out z-40 ${
+            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
         }`}
-        // Adjust 'top-[112px]' if your header height differs. 
-        // 112px is roughly Header (64px) + SubNav (48px)
-        style={{ top: '112px' }} 
+        style={{ top: '108px' }} // Adjusted to sit snugly under the sub-nav
       >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar px-2">
               {standings.slice(0, 4).map((team, idx) => {
@@ -108,13 +105,17 @@ export default function GroupStage({
   );
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6 pb-12">
+    <div className="w-full max-w-2xl mx-auto space-y-6 pb-24">
       
-      {/* --- STICKY BANNER (Hidden initially, slides down) --- */}
+      {/* Sticky Banner (Fixed Position) */}
       <StickyBanner />
 
-      {/* --- GROUP TABLE (Ref attached here) --- */}
-      <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+      {/* --- INVISIBLE TRIGGER LINE --- */}
+      {/* This 1px line sits right above the table. When it scrolls off-screen, the banner appears. */}
+      <div ref={triggerRef} className="w-full h-px opacity-0 pointer-events-none" />
+
+      {/* --- GROUP TABLE --- */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
              <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Group {activeTab} Standings</h3>
              <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Top 2 Qualify</span>
@@ -163,7 +164,7 @@ export default function GroupStage({
           const isLocked = match.status === 'FINISHED' || match.status === 'IN_PLAY';
           const isPredicted = pred.home_score !== null && pred.away_score !== null && pred.home_score !== undefined && pred.away_score !== undefined;
 
-          // 0-0 LOGIC HANDLER
+          // 0-0 LOGIC
           const handleScoreChange = (side: 'home_score' | 'away_score', val: number) => {
              const rivalSide = side === 'home_score' ? 'away_score' : 'home_score';
              const rivalScore = pred[rivalSide];
