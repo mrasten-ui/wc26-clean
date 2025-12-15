@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions } from '../lib/types';
-import { generateGroupPredictions } from '../lib/simulation'; // ✅ Import this
+import { generateGroupPredictions } from '../lib/simulation';
 
 export function usePrediction(
   supabase: SupabaseClient,
@@ -25,17 +25,19 @@ export function usePrediction(
     setPredictions((prev) => {
       const existing = prev[matchId] || {};
       
-      // ✅ FIXED: Spread 'existing' FIRST to avoid build error
+      // CRITICAL FIX: Ensure both scores exist as null (not undefined) if missing,
+      // and apply the specific field update last.
       const mergedPrediction = {
         ...existing, 
         
         match_id: matchId,
         user_id: user.id,
+        // Ensure home/away scores are never undefined when saving state
         home_score: existing.home_score ?? null, 
         away_score: existing.away_score ?? null, 
         winner_id: existing.winner_id ?? null,
         
-        [field]: value // Apply update last
+        [field]: value // Apply the specific update
       };
 
       return { ...prev, [matchId]: mergedPrediction };
@@ -53,7 +55,7 @@ export function usePrediction(
       }, { onConflict: 'match_id,user_id' });
 
     if (error) {
-      console.error('Error saving:', error);
+      console.error('Error saving prediction:', error);
       setSaveStatus('idle'); 
     } else {
       setSaveStatus('saved');
@@ -73,36 +75,47 @@ export function usePrediction(
     }
   };
 
-  // ✅ FIXED: Real Auto-Fill Logic
+  // 3. Handle Auto-Fill Logic (Global Scope)
   const handleAutoFill = async (boostedTeams: string[], activeTab: string) => {
       if (!user) return;
       
-      // 1. Generate scores locally
-      const newPreds = generateGroupPredictions(matches, user.id, boostedTeams);
+      let matchesToFill: Match[] = [];
       
-      // 2. Filter for current tab only (e.g., only Group A if activeTab is 'A')
-      // If activeTab is 'KNOCKOUT' or 'ALL', we might want different logic.
-      // For now, let's assume we fill ONLY the active group.
-      const filteredPreds = newPreds.filter(p => {
-         const m = matches.find(match => match.id === p.match_id);
-         return m?.home_team?.group_id === activeTab;
-      });
+      // Determine the scope: Group Stage or Knockout
+      if (activeTab === 'KNOCKOUT' || activeTab === 'BRACKET' || ['R32', 'R16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'].includes(activeTab)) {
+          // Fill ALL knockout matches
+          matchesToFill = matches.filter(m => m.stage !== 'GROUP');
+      } else {
+          // Assume Group tabs (A-L) mean 'fill the whole Group Stage'
+          matchesToFill = matches.filter(m => m.stage === 'GROUP');
+      }
 
-      if (filteredPreds.length === 0) return;
+      if (matchesToFill.length === 0) return;
 
-      // 3. Update Local State
+      // 1. Generate scores/winners locally (Group predictions are sufficient for both stages for now)
+      const newPreds = generateGroupPredictions(matchesToFill, user.id, boostedTeams); 
+      
+      // 2. Update Local State
       setPredictions(prev => {
           const next = { ...prev };
-          filteredPreds.forEach(p => {
-              next[p.match_id] = { ...next[p.match_id], ...p };
+          newPreds.forEach(p => {
+              // Merge the new prediction with any existing data
+              next[p.match_id] = { 
+                  ...next[p.match_id], 
+                  ...p,
+                  // Ensure fields are explicitly set to null if missing in the new prediction
+                  home_score: p.home_score ?? null, 
+                  away_score: p.away_score ?? null,
+                  winner_id: p.winner_id ?? null,
+              };
           });
           return next;
       });
 
-      // 4. Save to Database (Bulk)
+      // 3. Save to Database (Bulk)
       const { error } = await supabase
           .from('predictions')
-          .upsert(filteredPreds, { onConflict: 'match_id,user_id' });
+          .upsert(newPreds, { onConflict: 'match_id,user_id' });
 
       if (error) console.error("Auto-fill save error", error);
   };

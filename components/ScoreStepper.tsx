@@ -8,7 +8,7 @@ interface ScoreStepperProps {
 
 export default function ScoreStepper({ value, onChange, disabled = false }: ScoreStepperProps) {
   
-  // Display "-" if null/undefined, otherwise the number
+  // Display "-" if null/undefined, otherwise the number (0 included)
   const displayValue = (value === null || value === undefined) ? "-" : value;
 
   const handleIncrement = () => {
@@ -23,7 +23,7 @@ export default function ScoreStepper({ value, onChange, disabled = false }: Scor
 
   const handleDecrement = () => {
     if (disabled) return;
-    // If empty, set to 0.
+    // If empty, set to 0. This enforces the "go to 0-0" on the first click.
     if (value === null || value === undefined) {
       onChange(0);
       return;
@@ -34,7 +34,7 @@ export default function ScoreStepper({ value, onChange, disabled = false }: Scor
 
   return (
     <div className={`flex flex-col items-center gap-0.5 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      {/* UP BUTTON (Bigger) */}
+      {/* UP BUTTON (W-12 H-9 is the large size) */}
       <button 
         onClick={handleIncrement}
         disabled={disabled}
@@ -44,12 +44,12 @@ export default function ScoreStepper({ value, onChange, disabled = false }: Scor
         ▲
       </button>
       
-      {/* SCORE BOX (Bigger Font) */}
+      {/* SCORE BOX (W-12 H-12 is the large size) */}
       <div className={`w-12 h-12 flex items-center justify-center font-black text-2xl border-y border-slate-200 bg-white ${displayValue === '-' ? 'text-slate-300' : 'text-slate-900'}`}>
         {displayValue}
       </div>
 
-      {/* DOWN BUTTON (Bigger) */}
+      {/* DOWN BUTTON (W-12 H-9 is the large size) */}
       <button 
         onClick={handleDecrement}
         disabled={disabled}
