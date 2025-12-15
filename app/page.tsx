@@ -66,7 +66,6 @@ export default function Home() {
     (activeTab === "MATCHES" ? "MATCHES" : 
     "GROUPS")));
 
-  // Filter valid matches
   // Relaxed filter to ensure knockout matches (which have codes, not team IDs initially) are visible
   const allValidMatches = matches.filter(m => (m.home_team && m.away_team) || m.home_code || m.stage !== 'GROUP');
 
@@ -80,9 +79,11 @@ export default function Home() {
   // --- COMPLETION LOGIC ---
   const allGroupMatches = allValidMatches.filter(m => m.stage === 'GROUP');
   const totalGroupMatches = allGroupMatches.length; // Should be 72
+  
   const predictedGroupCount = allGroupMatches.filter(m => {
       const p = predictions[m.id];
-      return p && p.home_score !== null && p.away_score !== null;
+      // ✅ Strict check: Ensure both scores are numbers (so 0 counts)
+      return p && typeof p.home_score === 'number' && typeof p.away_score === 'number';
   }).length;
   
   // Strict check: Unlock bracket ONLY when all group games are predicted
@@ -100,7 +101,6 @@ export default function Home() {
   
   const bracketMap = useMemo(() => {
       if (!matches || matches.length === 0) return {} as BracketMap;
-      // Pass 'predictions' so the bracket knows who you picked!
       return calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions);
   }, [groupStandings, thirdPlaceTable, matches, predictions]);
 
@@ -110,10 +110,15 @@ export default function Home() {
   const getGroupStatus = (gid: string): StatusType => { 
       const ms = matchesByGroup[gid] || []; 
       if (ms.length === 0) return 'empty';
-      const completed = ms.filter(m => predictions[m.id]?.home_score !== null && predictions[m.id]?.away_score !== null).length;
-      if (completed === ms.length) return 'complete';
-      if (completed > 0) return 'partial';
-      return 'empty';
+      
+      const completedCount = ms.filter(m => {
+          const p = predictions[m.id];
+          return p && typeof p.home_score === 'number' && typeof p.away_score === 'number';
+      }).length;
+      
+      if (completedCount === 0) return 'empty';
+      if (completedCount === ms.length) return 'complete';
+      return 'partial';
   };
   
   const getMainTabStatus = (tab: "GROUPS" | "KNOCKOUT"): StatusType => {
@@ -163,7 +168,7 @@ export default function Home() {
 
   const handleSmartAutoFill = () => isBracketMode ? handleKnockoutAutoFill() : handleGroupAutoFill();
   const handleKnockoutAutoFill = () => { setActiveTab('KNOCKOUT'); setActiveKnockoutRound('R32'); setIsAutoFillModalOpen(true); };
-  const handleGroupAutoFill = () => { setActiveTab('A'); setIsAutoFillModalOpen(true); };
+  const handleGroupAutoFill = () => { setIsAutoFillModalOpen(true); }; // Fixed: Don't force tab switch, just open modal
 
   const handleSmartClear = () => {
       if(confirm(lang === 'no' ? "Er du sikker? Dette sletter alle tips i denne delen." : "Are you sure? This will delete all predictions in this section.")) {

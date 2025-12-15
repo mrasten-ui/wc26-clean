@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions } from '../lib/types';
+import { generateGroupPredictions } from '../lib/simulation'; // ✅ Import this
 
 export function usePrediction(
   supabase: SupabaseClient,
@@ -24,26 +25,20 @@ export function usePrediction(
     setPredictions((prev) => {
       const existing = prev[matchId] || {};
       
-      // ✅ FIXED: Spread 'existing' FIRST, then overwrite/ensure fields.
-      // This prevents the "property specified more than once" error.
+      // ✅ FIXED: Spread 'existing' FIRST to avoid build error
       const mergedPrediction = {
-        ...existing, // 1. Start with existing data (or empty)
+        ...existing, 
         
-        match_id: matchId, // 2. Ensure these are set
+        match_id: matchId,
         user_id: user.id,
-        
-        // 3. Fallback to null if undefined (fixes "One Side" bug)
         home_score: existing.home_score ?? null, 
         away_score: existing.away_score ?? null, 
         winner_id: existing.winner_id ?? null,
         
-        [field]: value // 4. Apply the specific update
+        [field]: value // Apply update last
       };
 
-      return {
-        ...prev,
-        [matchId]: mergedPrediction
-      };
+      return { ...prev, [matchId]: mergedPrediction };
     });
 
     setSaveStatus('saving');
@@ -58,7 +53,7 @@ export function usePrediction(
       }, { onConflict: 'match_id,user_id' });
 
     if (error) {
-      console.error('Error saving prediction:', error);
+      console.error('Error saving:', error);
       setSaveStatus('idle'); 
     } else {
       setSaveStatus('saved');
@@ -78,8 +73,38 @@ export function usePrediction(
     }
   };
 
-  const handleAutoFill = async (teams: any[], activeTab: string) => {
-      // Placeholder
+  // ✅ FIXED: Real Auto-Fill Logic
+  const handleAutoFill = async (boostedTeams: string[], activeTab: string) => {
+      if (!user) return;
+      
+      // 1. Generate scores locally
+      const newPreds = generateGroupPredictions(matches, user.id, boostedTeams);
+      
+      // 2. Filter for current tab only (e.g., only Group A if activeTab is 'A')
+      // If activeTab is 'KNOCKOUT' or 'ALL', we might want different logic.
+      // For now, let's assume we fill ONLY the active group.
+      const filteredPreds = newPreds.filter(p => {
+         const m = matches.find(match => match.id === p.match_id);
+         return m?.home_team?.group_id === activeTab;
+      });
+
+      if (filteredPreds.length === 0) return;
+
+      // 3. Update Local State
+      setPredictions(prev => {
+          const next = { ...prev };
+          filteredPreds.forEach(p => {
+              next[p.match_id] = { ...next[p.match_id], ...p };
+          });
+          return next;
+      });
+
+      // 4. Save to Database (Bulk)
+      const { error } = await supabase
+          .from('predictions')
+          .upsert(filteredPreds, { onConflict: 'match_id,user_id' });
+
+      if (error) console.error("Auto-fill save error", error);
   };
 
   return { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill };

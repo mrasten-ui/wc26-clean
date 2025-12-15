@@ -6,6 +6,7 @@ export const generateGroupPredictions = (
     userId: string,
     boostedTeams: string[]
 ): Prediction[] => {
+    // Only target group matches that have known teams
     const groupMatches = matches.filter(m => m.stage === 'GROUP' && m.home_team && m.away_team);
     const newPredictions: Prediction[] = [];
 
@@ -13,7 +14,7 @@ export const generateGroupPredictions = (
         const homeId = m.home_team!.id;
         const awayId = m.away_team!.id;
         
-        // ✅ FIXED: Added fallback (|| 50) to prevent "possibly undefined" error
+        // Use ranking or default to 50
         const homeRank = m.home_team!.fifa_ranking || 50;
         const awayRank = m.away_team!.fifa_ranking || 50;
 
