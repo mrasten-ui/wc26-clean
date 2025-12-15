@@ -4,7 +4,7 @@ export interface TeamData {
   id: string;
   name: string;
   group_id: string;
-  fifa_ranking?: number; // ✅ Fixed AutoFill error
+  fifa_ranking?: number; // ✅ FIXED: Added this optional field
 }
 
 export interface Match {
@@ -18,7 +18,7 @@ export interface Match {
   kickoff_time: string;
   venue: string;
   stage: string;
-  status: MatchStatus; // ✅ Fixed GroupStage error
+  status: MatchStatus; // ✅ FIXED: Now includes 'IN_PLAY'
   winner_id?: string | null;
   home_team?: TeamData;
   away_team?: TeamData;
@@ -53,6 +53,6 @@ export interface BracketMap {
       name: string;
       sourceType: 'GROUP' | 'MATCH';
       sourceId?: string | number;
-      predictedTeamId?: string | null; // ✅ Allows nulls
+      predictedTeamId?: string | null;
   };
 }

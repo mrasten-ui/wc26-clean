@@ -9,8 +9,8 @@ interface GroupStageProps {
   setActiveTab: (tab: string) => void;
   matchesByGroup: Record<string, Match[]>;
   predictions: Record<number, Prediction>;
-  // ✅ FIXED: Type compatibility with page.tsx
-  handlePredict: (matchId: number, field: any, value: any) => void; 
+  // ✅ FIXED: Changed value type to 'any' to accept string or number updates safely
+  handlePredict: (matchId: number, field: string, value: any) => void; 
   leaderboard: LeaderboardEntry[];
   allPredictions: GlobalPredictions;
   user: UserData | null;
@@ -63,7 +63,9 @@ export default function GroupStage({
           const awayTeamName = getTeamName(match.away_team_id || '', match.away_team?.name || 'Away');
           const pred = predictions[match.id] || { home_score: null, away_score: null };
           
+          // ✅ FIXED: This works now because MatchStatus includes IN_PLAY
           const isLocked = match.status === 'FINISHED' || match.status === 'IN_PLAY';
+          
           const matchDate = new Date(match.kickoff_time).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
           const matchTime = new Date(match.kickoff_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 

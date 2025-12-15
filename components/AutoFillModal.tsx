@@ -1,115 +1,110 @@
-"use client";
-import { useState, useEffect } from 'react'; // useEffect added here
-import { TeamData } from '../lib/types';
-import { getFlagUrl } from '../lib/flags';
-import { COLORS } from '../lib/constants';
+import { useState } from "react";
+import { COLORS } from "../lib/constants";
+import { TeamData } from "../lib/types";
+import { getFlagUrl } from "../lib/flags";
 
 interface AutoFillModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: (selectedTeams: string[]) => void;
-    allTeams: TeamData[];
-    lang: string;
-    t: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (selectedTeamIds: string[]) => void;
+  allTeams: TeamData[];
+  lang: string;
+  t: any;
 }
 
 export default function AutoFillModal({ isOpen, onClose, onConfirm, allTeams, lang, t }: AutoFillModalProps) {
-    const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-    
-    // 1. SCROLL LOCK FIX: Prevent background scrolling when modal is open
-    useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = 'unset';
-        }
-        return () => {
-            document.body.style.overflow = 'unset'; // Clean up on unmount
-        };
-    }, [isOpen]);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const handleSelectTeam = (teamId: string) => {
-        setSelectedTeams(prev => {
-            if (prev.includes(teamId)) {
-                return prev.filter(id => id !== teamId);
-            }
-            if (prev.length < 3) {
-                return [...prev, teamId];
-            }
-            return prev; // Max 3 teams allowed
-        });
-    };
+  const handleSelectTeam = (teamId: string) => {
+    setSelectedTeams(prev => {
+      if (prev.includes(teamId)) {
+        return prev.filter(id => id !== teamId);
+      }
+      if (prev.length >= 3) {
+        return [...prev.slice(1), teamId];
+      }
+      return [...prev, teamId];
+    });
+  };
 
-    const handleConfirm = () => {
-        onConfirm(selectedTeams);
-        setSelectedTeams([]);
-        onClose();
-    };
-    
-    // Sort teams by FIFA ranking (ascending)
-    const sortedTeams = allTeams.sort((a, b) => a.fifa_ranking - b.fifa_ranking);
+  const handleConfirm = () => {
+    onConfirm(selectedTeams);
+    setSelectedTeams([]);
+    onClose();
+  };
 
-    return (
-        // BACKGROUND OVERLAY
-        <div 
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity" 
-            style={{ backgroundColor: `${COLORS.navy}dd` }} // Use the correct navy with more opacity
-            onClick={onClose}
-        >
-            <div 
-                // 2. SIZE FIX: Changed from max-w-lg to max-w-sm
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-300" 
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-6 text-center">
-                    <span className="text-2xl mb-2 inline-block">✨</span>
-                    <h2 className="text-xl font-black text-slate-900 mb-1">
-                        {t.helpingHandTitle || "THE RASTEN HELPING HAND"}
-                    </h2>
-                    <p className="text-slate-500 mb-5 text-sm">
-                        {t.helpingHandText || "Select up to 3 teams. The Helping Hand will give these teams a significant advantage in the simulation!"}
-                    </p>
+  // ✅ FIXED: Safely sort teams. If ranking is missing, assume 100 (low rank).
+  const sortedTeams = [...allTeams].sort((a, b) => {
+    const rankA = a.fifa_ranking ?? 100; 
+    const rankB = b.fifa_ranking ?? 100;
+    return rankA - rankB;
+  });
 
-                    {/* TEAM SELECTION GRID: Scrolling enabled */}
-                    <div className="grid grid-cols-3 gap-2 max-h-56 overflow-y-scroll pr-3 scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-blue-100">
-                        {sortedTeams.map(team => (
-                            <button
-                                key={team.id}
-                                onClick={() => handleSelectTeam(team.id)}
-                                className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all shadow-sm ${
-                                    selectedTeams.includes(team.id)
-                                        ? 'border-yellow-500 bg-yellow-50/50 scale-105 shadow-md'
-                                        : 'border-slate-100 bg-slate-50 hover:bg-slate-100'
-                                }`}
-                                disabled={!selectedTeams.includes(team.id) && selectedTeams.length >= 3}
-                            >
-                                <img src={getFlagUrl(team.id)} alt={team.id} className="w-8 h-6 object-cover rounded shadow-sm mb-1" />
-                                <span className="text-[10px] font-bold text-slate-700 leading-tight">{team.id}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
+  return (
+    // BACKGROUND OVERLAY
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity"
+      style={{ backgroundColor: `${COLORS.navy}dd` }} // Use the correct navy with more opacity
+      onClick={onClose}
+    >
+      <div 
+        // 2. SIZE FIX: Changed from max-w-lg to max-w-sm
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 text-center">
+          <span className="text-2xl mb-2 inline-block">✨</span>
+          <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">
+            {t.smartAutoFill || "Smart Auto-Fill"}
+          </h2>
+          <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+            {t.selectFavorites || "Select up to 3 favorites to boost their winning chances."}
+          </p>
 
-                {/* SIMULATION BUTTON */}
-                <div className="px-6 pb-6">
-                    <button
-                        onClick={handleConfirm}
-                        style={{ backgroundColor: COLORS.navy }}
-                        className="w-full py-3 text-white font-black rounded-xl uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={selectedTeams.length === 0}
-                    >
-                        {t.runSimulation || "Run Simulation"} ✨
-                    </button>
-                    {selectedTeams.length > 0 && (
-                        <p className="mt-2 text-[10px] text-center text-slate-500">
-                            {t.selected || "Selected:"} {selectedTeams.map(id => id).join(', ')}
-                        </p>
-                    )}
-                </div>
+          <div className="grid grid-cols-4 gap-3 mb-6 max-h-60 overflow-y-auto p-2 no-scrollbar">
+            {sortedTeams.map((team) => {
+              const isSelected = selectedTeams.includes(team.id);
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => handleSelectTeam(team.id)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${
+                    isSelected 
+                      ? "bg-blue-50 ring-2 ring-blue-500 scale-105 shadow-md" 
+                      : "hover:bg-slate-50 grayscale hover:grayscale-0 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <img 
+                    src={getFlagUrl(team.id)} 
+                    alt={team.name} 
+                    className="w-8 h-8 rounded-full object-cover shadow-sm"
+                  />
+                  <span className={`text-[9px] font-bold truncate w-full ${isSelected ? "text-blue-700" : "text-slate-400"}`}>
+                    {team.id}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-            </div>
+          <div className="flex gap-3">
+             <button 
+                onClick={onClose}
+                className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+             >
+               {t.cancel || "Cancel"}
+             </button>
+             <button 
+                onClick={handleConfirm}
+                className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95"
+             >
+               {t.generate || "Generate"}
+             </button>
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 }
