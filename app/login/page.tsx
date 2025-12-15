@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { createClient } from "../../lib/supabase";
+// ✅ IMPORT SHARED CLIENT (Singleton)
+import { supabase } from "../../lib/supabase"; 
 import { useRouter } from "next/navigation";
 import { COLORS, TRANSLATIONS } from "../../lib/constants";
 import { getFlagUrl } from "../../lib/flags";
@@ -20,7 +21,7 @@ export default function Login() {
 
   const videoRef = useRef<HTMLVideoElement>(null); 
   const router = useRouter();
-  const supabase = createClient();
+  // ❌ REMOVED: const supabase = createClient(); 
 
   useEffect(() => {
     const savedLang = localStorage.getItem("wc26_lang");
@@ -52,7 +53,11 @@ export default function Login() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert(error.message);
-      else router.push("/");
+      else {
+          // ✅ Force a router refresh to ensure the new session is picked up
+          router.refresh(); 
+          router.push("/");
+      }
     }
     setLoading(false);
   };
@@ -82,27 +87,24 @@ export default function Login() {
         </div>
       )}
 
-      {/* MAIN CONTAINER: Forced max-width of 320px (Tighter than 'sm') */}
       <div className="w-full" style={{ maxWidth: '320px' }}>
         
-        {/* HEADER: OUTSIDE AND ABOVE THE CARD (TIGHTER SPACING) */}
+        {/* HEADER */}
         <div className="text-center mb-4 cursor-pointer group" onClick={triggerVideo}>
-            {/* LOGO: Shrinks to w-20 (80px) */}
             <img 
                 src="/icon-192.png" 
                 alt="Logo" 
                 className="w-20 h-auto mx-auto mb-2 group-hover:scale-105 transition-transform drop-shadow-lg"
                 onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = '<span class="text-5xl">🏆</span>'; }} 
             />
-            {/* TITLE: Shrinks to text-lg */}
             <h1 className="text-lg font-black text-white uppercase tracking-tighter drop-shadow-md">{t.appName}</h1>
             <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mt-1 group-hover:text-yellow-400 transition-colors">{t.tapLogo}</p>
         </div>
 
-        {/* CARD: WHITE BOX (TIGHTER PADDING, ROUNDED) */}
+        {/* CARD */}
         <div className="bg-white rounded-xl shadow-xl overflow-hidden p-6 relative pt-10">
             
-            {/* FLAGS: INSIDE CARD, CENTERED AT TOP */}
+            {/* FLAGS */}
             <div className="absolute top-3 left-0 right-0 flex justify-center space-x-1.5">
                 {(['en', 'no', 'us', 'sc'] as Language[]).map((l) => (
                 <button key={l} onClick={() => handleLangChange(l)} className={`transition-all rounded overflow-hidden shadow-sm hover:shadow-md ${lang === l ? 'ring-2 ring-yellow-400 scale-105' : 'opacity-40 grayscale hover:grayscale-0 hover:opacity-100'}`}>
@@ -111,13 +113,13 @@ export default function Login() {
                 ))}
             </div>
 
-            {/* TOGGLE BUTTONS (TIGHTER MARGINS) */}
+            {/* TOGGLE BUTTONS */}
             <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
                 <button onClick={() => setIsSignUp(false)} className={`flex-1 py-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${!isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t.logIn}</button>
                 <button onClick={() => setIsSignUp(true)} className={`flex-1 py-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${isSignUp ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>{t.signUp}</button>
             </div>
 
-            {/* FORM (TIGHTER SPACING) */}
+            {/* FORM */}
             <form onSubmit={handleAuth} className="space-y-3">
                 {isSignUp && (<div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.fullName}</label><input type="text" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-all" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>)}
                 <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t.email}</label><input type="email" required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 transition-all" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
@@ -127,15 +129,13 @@ export default function Login() {
                     disabled={loading} 
                     type="submit" 
                     className="w-full py-3.5 text-white text-xs font-black rounded-lg uppercase tracking-widest hover:brightness-110 transition-all active:scale-95 disabled:opacity-50 mt-2 shadow-lg" 
-                    style={{backgroundColor: COLORS.navy}} // Ensures the button matches the background navy: #154284
+                    style={{backgroundColor: COLORS.navy}} 
                 >
                     {loading ? t.processing : (isSignUp ? t.createAccount : t.enterArena)}
                 </button>
             </form>
         </div>
       </div>
-      
-      {/* COPYRIGHT FOOTER: REMOVED */}
     </div>
   );
 }
