@@ -1,7 +1,9 @@
 "use client";
 import { useState, Suspense, useEffect, useMemo } from "react"; 
 import { createClient } from "@supabase/supabase-js"; 
-// ✅ CORRECT PATHS: Go up one level (../) to find hooks/lib
+// ✅ CORRECT PATHS: Go up one level (../) to find hooks/lib/components
+// Your folder structure is: root -> app -> page.tsx
+// So ../ takes you to root, then into hooks/lib/components
 import { useAppData } from "../hooks/useAppData"; 
 import { usePrediction } from "../hooks/usePrediction"; 
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator"; 
@@ -10,7 +12,7 @@ import { getFlagUrl } from "../lib/flags";
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants"; 
 import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
 
-// ✅ CORRECT PATHS: Go up one level (../) to find components
+// Components
 import Header from "../components/Header"; 
 import Leaderboard from "../components/Leaderboard";
 import Bracket from "../components/Bracket";
@@ -18,6 +20,8 @@ import GroupStage from "../components/GroupStage";
 import MatchCenter from "../components/MatchCenter";
 import AutoFillModal from "../components/AutoFillModal"; 
 import RulesModal from "../components/RulesModal";
+// ✅ IMPORT THE DIAGNOSTICS TOOL
+import DebugSaver from "../components/DebugSaver"; 
 
 // --- CLIENT SETUP ---
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -229,6 +233,10 @@ export default function Home() {
           t={t} 
       />
       <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} t={t} lang={lang} />
+      
+      {/* ✅ DEBUGGER ADDED HERE */}
+      <DebugSaver user={user} />
+      
     </div>
   );
 }
