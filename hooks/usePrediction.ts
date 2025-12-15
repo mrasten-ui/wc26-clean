@@ -24,15 +24,20 @@ export function usePrediction(
     setPredictions((prev) => {
       const existing = prev[matchId] || {};
       
-      // ✅ CRITICAL FIX: Ensure both scores exist as null (not undefined) if missing
+      // ✅ FIXED: Spread 'existing' FIRST, then overwrite/ensure fields.
+      // This prevents the "property specified more than once" error.
       const mergedPrediction = {
-        match_id: matchId,
+        ...existing, // 1. Start with existing data (or empty)
+        
+        match_id: matchId, // 2. Ensure these are set
         user_id: user.id,
+        
+        // 3. Fallback to null if undefined (fixes "One Side" bug)
         home_score: existing.home_score ?? null, 
         away_score: existing.away_score ?? null, 
         winner_id: existing.winner_id ?? null,
-        ...existing, // Spread existing properties
-        [field]: value // Overwrite the specific field being changed
+        
+        [field]: value // 4. Apply the specific update
       };
 
       return {
