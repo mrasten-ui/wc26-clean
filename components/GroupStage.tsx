@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect, useRef } from "react"; // ✅ Added hooks for scroll detection
 import { Match, Prediction, LeaderboardEntry, UserData, GlobalPredictions } from "../lib/types";
 import { getFlagUrl } from "../lib/flags";
 import { COLORS, GROUPS } from "../lib/constants";
@@ -32,7 +33,7 @@ interface GroupStageProps {
   t: any;
   lang: string;
   getTeamName: (id: string, def: string) => string;
-  standings: Standing[]; // ✅ Added Prop
+  standings: Standing[];
 }
 
 export default function GroupStage({
@@ -42,7 +43,7 @@ export default function GroupStage({
   predictions,
   handlePredict,
   getTeamName,
-  standings // ✅ Destructure Prop
+  standings
 }: GroupStageProps) {
   
   const groupMatches = matchesByGroup[activeTab] || [];
@@ -61,14 +62,40 @@ export default function GroupStage({
       }
   };
 
-  // --- Sticky Banner Component ---
+  // --- SCROLL DETECTION LOGIC ---
+  const [showSticky, setShowSticky] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+      const observer = new IntersectionObserver(
+          ([entry]) => {
+              // Show banner ONLY if table is out of view (isIntersecting is false) 
+              // AND we have scrolled down past it (boundingClientRect.top is negative)
+              const isScrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+              setShowSticky(isScrolledPast);
+          },
+          { threshold: 0 } // Trigger as soon as 1 pixel of the table leaves the view
+      );
+
+      if (tableRef.current) observer.observe(tableRef.current);
+      return () => observer.disconnect();
+  }, [activeTab]); // Re-run when tab changes
+
+  // --- Sticky Banner Component (Top Position) ---
   const StickyBanner = () => (
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-white/10 p-3 z-40 shadow-2xl animate-in slide-in-from-bottom-full duration-300">
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div 
+        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 z-30 shadow-xl transition-all duration-500 ease-in-out ${
+            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+        // Adjust 'top-[112px]' if your header height differs. 
+        // 112px is roughly Header (64px) + SubNav (48px)
+        style={{ top: '112px' }} 
+      >
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar px-2">
               {standings.slice(0, 4).map((team, idx) => {
                   const isQualifying = idx < 2;
                   return (
-                      <div key={team.teamId} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg whitespace-nowrap ${isQualifying ? 'bg-green-500/20 ring-1 ring-green-500/50' : 'bg-white/5'}`}>
+                      <div key={team.teamId} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${isQualifying ? 'bg-green-500/20 ring-1 ring-green-500/50' : 'bg-white/5'}`}>
                           <span className={`text-[10px] font-black w-3 ${isQualifying ? 'text-green-400' : 'text-slate-500'}`}>{idx + 1}</span>
                           <img src={getFlagUrl(team.teamId)} className="w-5 h-3.5 object-cover rounded shadow-sm" />
                           <span className="text-xs font-bold text-white hidden sm:inline">{getTeamName(team.teamId, team.teamId).substring(0, 3).toUpperCase()}</span>
@@ -81,10 +108,13 @@ export default function GroupStage({
   );
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-6 pb-24"> {/* Added pb-24 for sticky banner space */}
+    <div className="w-full max-w-2xl mx-auto space-y-6 pb-12">
       
-      {/* --- GROUP TABLE --- */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+      {/* --- STICKY BANNER (Hidden initially, slides down) --- */}
+      <StickyBanner />
+
+      {/* --- GROUP TABLE (Ref attached here) --- */}
+      <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
              <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Group {activeTab} Standings</h3>
              <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Top 2 Qualify</span>
@@ -189,9 +219,6 @@ export default function GroupStage({
           );
         })}
       </div>
-
-      {/* --- STICKY BANNER --- */}
-      <StickyBanner />
 
       <div className="pt-6 border-t border-slate-200/50">
           <button 
