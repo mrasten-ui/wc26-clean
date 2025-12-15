@@ -66,7 +66,8 @@ export default function Home() {
     (activeTab === "MATCHES" ? "MATCHES" : 
     "GROUPS")));
 
-  // Relaxed filter for Knockout placeholders
+  // Filter valid matches
+  // Relaxed filter to ensure knockout matches (which have codes, not team IDs initially) are visible
   const allValidMatches = matches.filter(m => (m.home_team && m.away_team) || m.home_code || m.stage !== 'GROUP');
 
   const matchesByGroup = allValidMatches.reduce((acc, m) => { 
@@ -76,17 +77,21 @@ export default function Home() {
       return acc; 
   }, {} as Record<string, Match[]>);
 
+  // --- COMPLETION LOGIC ---
   const allGroupMatches = allValidMatches.filter(m => m.stage === 'GROUP');
-  const totalGroupMatches = allGroupMatches.length;
+  const totalGroupMatches = allGroupMatches.length; // Should be 72
   const predictedGroupCount = allGroupMatches.filter(m => {
       const p = predictions[m.id];
       return p && p.home_score !== null && p.away_score !== null;
   }).length;
   
+  // Strict check: Unlock bracket ONLY when all group games are predicted
   const isTournamentComplete = totalGroupMatches > 0 && predictedGroupCount === totalGroupMatches;
+  
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
   const hasPredictions = Object.keys(predictions).length > 0;
   
+  // --- BRACKET CALCULATIONS ---
   // @ts-ignore
   const groupStandings: Record<string, any> = {};
   GROUPS.forEach(g => { groupStandings[g] = calculateGroupStandings(matchesByGroup[g] || [], predictions); });
@@ -95,11 +100,13 @@ export default function Home() {
   
   const bracketMap = useMemo(() => {
       if (!matches || matches.length === 0) return {} as BracketMap;
+      // Pass 'predictions' so the bracket knows who you picked!
       return calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions);
   }, [groupStandings, thirdPlaceTable, matches, predictions]);
 
   const getTeamNameForComponent = (id: string, def: string) => getTeamName(id, def, lang, showNicknames);
 
+  // --- STATUS CHECKERS (DOT COLORS) ---
   const getGroupStatus = (gid: string): StatusType => { 
       const ms = matchesByGroup[gid] || []; 
       if (ms.length === 0) return 'empty';
@@ -122,16 +129,17 @@ export default function Home() {
     return 'empty';
   };
   
-  // ✅ FIXED: Correct Dot Logic (Gray = Empty, Orange = Partial, Green = Complete)
   const getKnockoutStatus = (stage: string): StatusType => {
       if (stage === 'TREE') return 'partial'; 
+      
       const stageMatches = matches.filter(m => m.stage === stage);
       if (stageMatches.length === 0) return 'empty';
       
       const predictedCount = stageMatches.filter(m => predictions[m.id]?.winner_id).length;
-      if (predictedCount === stageMatches.length) return 'complete';
-      if (predictedCount > 0) return 'partial';
-      return 'empty'; // Returns 'empty' (Gray) if 0 picks
+      
+      if (predictedCount === 0) return 'empty'; // Gray
+      if (predictedCount === stageMatches.length) return 'complete'; // Green
+      return 'partial'; // Orange
   };
 
   const handleLogout = async () => {

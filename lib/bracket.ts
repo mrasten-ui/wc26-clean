@@ -8,6 +8,7 @@ export const calculateBracketMapping = (
 ): BracketMap => {
     const map: BracketMap = {};
 
+    // 1. Map Group Winners
     Object.keys(groupStandings).forEach(group => {
         const standings = groupStandings[group];
         if (standings && standings.length > 0) {
@@ -24,12 +25,13 @@ export const calculateBracketMapping = (
         }
     });
 
+    // 2. Map Knockout Matches
     matches.forEach(m => {
         if (m.stage !== 'GROUP') {
             const winnerKey = `W${m.id}`;
             const loserKey = `L${m.id}`;
             
-            // ✅ SAFETY FIX: Ensure predictions object exists before accessing
+            // ✅ CRITICAL FIX: Safely access user prediction
             const userPrediction = predictions?.[m.id]?.winner_id;
             
             map[winnerKey] = {

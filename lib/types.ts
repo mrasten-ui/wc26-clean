@@ -4,7 +4,7 @@ export interface TeamData {
   id: string;
   name: string;
   group_id: string;
-  fifa_ranking?: number; // ✅ FIXED: Added this optional field
+  fifa_ranking?: number; // ✅ FIXED: Added optional ranking
 }
 
 export interface Match {
@@ -18,7 +18,7 @@ export interface Match {
   kickoff_time: string;
   venue: string;
   stage: string;
-  status: MatchStatus; // ✅ FIXED: Now includes 'IN_PLAY'
+  status: MatchStatus; // ✅ FIXED: Now supports 'IN_PLAY'
   winner_id?: string | null;
   home_team?: TeamData;
   away_team?: TeamData;
