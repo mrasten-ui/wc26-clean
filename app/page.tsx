@@ -1,18 +1,14 @@
 "use client";
 import { useState, Suspense, useEffect, useMemo } from "react"; 
-// ✅ IMPORT SHARED CLIENT (Go up to lib)
 import { supabase } from "../lib/supabase"; 
 
-// ✅ CORRECT PATHS: Go up one level (../) to find these folders
 import { useAppData } from "../hooks/useAppData"; 
 import { usePrediction } from "../hooks/usePrediction"; 
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator"; 
 import { calculateBracketMapping } from "../lib/bracket"; 
-import { getFlagUrl } from "../lib/flags"; 
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants"; 
 import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
 
-// ✅ COMPONENTS (Go up one level)
 import Header from "../components/Header"; 
 import Leaderboard from "../components/Leaderboard";
 import Bracket from "../components/Bracket";
@@ -20,15 +16,12 @@ import GroupStage from "../components/GroupStage";
 import MatchCenter from "../components/MatchCenter";
 import AutoFillModal from "../components/AutoFillModal"; 
 import RulesModal from "../components/RulesModal";
-// We removed DebugSaver since we are starting fresh
 
-// Placeholder components
 const WelcomeListener = ({ onOpen }: { onOpen: () => void }) => { return null; };
 const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
     <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
 );
 
-// Helper to get team name
 const getTeamName = (id: string, def: string, lang: string, showNicknames: boolean) => {
     const langKey = lang as 'en' | 'no' | 'us' | 'sc';
     const teamMap = TEAM_NAMES[langKey] || TEAM_NAMES.en;
@@ -41,14 +34,11 @@ const getTeamName = (id: string, def: string, lang: string, showNicknames: boole
 type StatusType = "empty" | "partial" | "complete";
 
 export default function Home() {
-  
-  // 1. Load Data
   const { 
     user, matches, predictions, setPredictions, allPredictions, leaderboard, 
     champion, allTeams, revealCount, setRevealCount, loading, 
   } = useAppData(); 
   
-  // 2. UI State
   const [activeTab, setActiveTab] = useState("A"); 
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
@@ -63,17 +53,22 @@ export default function Home() {
     }
   }, []);
 
-  // 3. Handle Logic 
-  // ✅ PASS THE SHARED CLIENT
   const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
     supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
   
   const t = TRANSLATIONS[lang];
-  const currentMainTab = (activeTab === "KNOCKOUT" || KNOCKOUT_STAGES.includes(activeTab)) ? "KNOCKOUT" : (activeTab === "RULES" ? "RULES" : (activeTab === "RESULTS" ? "RESULTS" : (activeTab === "MATCHES" ? "MATCHES" : "GROUPS")));
 
-  // 4. Derived Data 
-  const allValidMatches = matches.filter(m => m.home_team && m.away_team);
+  const currentMainTab = 
+    (activeTab === "BRACKET" || activeTab === "KNOCKOUT" || KNOCKOUT_STAGES.includes(activeTab)) ? "KNOCKOUT" : 
+    (activeTab === "RULES" ? "RULES" : 
+    (activeTab === "RESULTS" ? "RESULTS" : 
+    (activeTab === "MATCHES" ? "MATCHES" : 
+    "GROUPS")));
+
+  // Relaxed filter for Knockout placeholders
+  const allValidMatches = matches.filter(m => (m.home_team && m.away_team) || m.home_code || m.stage !== 'GROUP');
+
   const matchesByGroup = allValidMatches.reduce((acc, m) => { 
       if (!m.home_team) return acc;
       const gid = m.home_team.group_id; 
@@ -82,47 +77,62 @@ export default function Home() {
   }, {} as Record<string, Match[]>);
 
   const allGroupMatches = allValidMatches.filter(m => m.stage === 'GROUP');
-  const totalMatches = allGroupMatches.length;
-  const predictedCount = Object.values(predictions || {}).filter(p => { 
-      const m = allValidMatches.find(m => m.id === p.match_id); 
-      return m && m.stage === 'GROUP' && p.home_score !== null && p.away_score !== null; 
+  const totalGroupMatches = allGroupMatches.length;
+  const predictedGroupCount = allGroupMatches.filter(m => {
+      const p = predictions[m.id];
+      return p && p.home_score !== null && p.away_score !== null;
   }).length;
   
-  const isTournamentComplete = totalMatches > 0 && predictedCount === totalMatches;
+  const isTournamentComplete = totalGroupMatches > 0 && predictedGroupCount === totalGroupMatches;
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
   const hasPredictions = Object.keys(predictions).length > 0;
   
   // @ts-ignore
   const groupStandings: Record<string, any> = {};
   GROUPS.forEach(g => { groupStandings[g] = calculateGroupStandings(matchesByGroup[g] || [], predictions); });
-  
   // @ts-ignore
   const thirdPlaceTable = calculateThirdPlaceStandings(allGroupMatches, predictions);
   
   const bracketMap = useMemo(() => {
       if (!matches || matches.length === 0) return {} as BracketMap;
-      return calculateBracketMapping(groupStandings, thirdPlaceTable, matches);
-  }, [groupStandings, thirdPlaceTable, matches]);
+      return calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions);
+  }, [groupStandings, thirdPlaceTable, matches, predictions]);
 
   const getTeamNameForComponent = (id: string, def: string) => getTeamName(id, def, lang, showNicknames);
 
-  // 5. Helper Functions
   const getGroupStatus = (gid: string): StatusType => { 
       const ms = matchesByGroup[gid] || []; 
       if (ms.length === 0) return 'empty';
-      if (ms.every(m => predictions[m.id]?.home_score !== null)) return 'complete';
-      if (ms.some(m => predictions[m.id]?.home_score !== null)) return 'partial';
+      const completed = ms.filter(m => predictions[m.id]?.home_score !== null && predictions[m.id]?.away_score !== null).length;
+      if (completed === ms.length) return 'complete';
+      if (completed > 0) return 'partial';
       return 'empty';
   };
   
   const getMainTabStatus = (tab: "GROUPS" | "KNOCKOUT"): StatusType => {
     if (loading || matches.length === 0) return 'empty';
-    if (tab === "GROUPS") return isTournamentComplete ? 'complete' : (predictedCount > 0 ? 'partial' : 'empty');
-    if (tab === "KNOCKOUT") return 'partial'; 
+    if (tab === "GROUPS") return isTournamentComplete ? 'complete' : (predictedGroupCount > 0 ? 'partial' : 'empty');
+    if (tab === "KNOCKOUT") {
+        const knockoutMatches = matches.filter(m => m.stage !== 'GROUP');
+        const predictedKnockout = knockoutMatches.filter(m => predictions[m.id]?.winner_id).length;
+        if (predictedKnockout === knockoutMatches.length) return 'complete';
+        if (predictedKnockout > 0) return 'partial';
+        return 'empty';
+    }
     return 'empty';
   };
   
-  const getKnockoutStatus = (stage: string): StatusType => 'partial';
+  // ✅ FIXED: Correct Dot Logic (Gray = Empty, Orange = Partial, Green = Complete)
+  const getKnockoutStatus = (stage: string): StatusType => {
+      if (stage === 'TREE') return 'partial'; 
+      const stageMatches = matches.filter(m => m.stage === stage);
+      if (stageMatches.length === 0) return 'empty';
+      
+      const predictedCount = stageMatches.filter(m => predictions[m.id]?.winner_id).length;
+      if (predictedCount === stageMatches.length) return 'complete';
+      if (predictedCount > 0) return 'partial';
+      return 'empty'; // Returns 'empty' (Gray) if 0 picks
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -140,6 +150,19 @@ export default function Home() {
     }
   };
 
+  const isBracketMode = activeTab === "BRACKET" || currentMainTab === "KNOCKOUT";
+  const showTools = currentMainTab === "GROUPS" || isBracketMode;
+
+  const handleSmartAutoFill = () => isBracketMode ? handleKnockoutAutoFill() : handleGroupAutoFill();
+  const handleKnockoutAutoFill = () => { setActiveTab('KNOCKOUT'); setActiveKnockoutRound('R32'); setIsAutoFillModalOpen(true); };
+  const handleGroupAutoFill = () => { setActiveTab('A'); setIsAutoFillModalOpen(true); };
+
+  const handleSmartClear = () => {
+      if(confirm(lang === 'no' ? "Er du sikker? Dette sletter alle tips i denne delen." : "Are you sure? This will delete all predictions in this section.")) {
+          handleClearPredictions();
+      }
+  };
+
   if (loading) return <LoadingComponent t={t} COLORS={COLORS} />;
 
   return (
@@ -148,8 +171,8 @@ export default function Home() {
         user={user} activeTab={activeTab} setActiveTab={setActiveTab} currentMainTab={currentMainTab}
         activeKnockoutRound={activeKnockoutRound} setActiveKnockoutRound={setActiveKnockoutRound}
         saveStatus={saveStatus} revealCount={revealCount} isGenerating={false}
-        handleGroupAutoFill={() => { setActiveTab('A'); setIsAutoFillModalOpen(true); }} 
-        handleKnockoutAutoFill={() => { setActiveTab('KNOCKOUT'); setActiveKnockoutRound('R32'); setIsAutoFillModalOpen(true); }}
+        handleGroupAutoFill={handleGroupAutoFill} 
+        handleKnockoutAutoFill={handleKnockoutAutoFill}
         handleClearPredictions={handleClearPredictions} hasPredictions={hasPredictions} 
         isTournamentComplete={isTournamentComplete} handleLogout={handleLogout}
         lang={lang} setLang={setLang as any} t={t} getMainTabStatus={getMainTabStatus} getGroupStatus={getGroupStatus}

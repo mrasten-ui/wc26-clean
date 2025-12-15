@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { COLORS } from "../lib/constants";
 import ProgressRing from "./ProgressRing";
+// ✅ RESTORED: Import it here so it lives in the header
 import SubNavigation from "./SubNavigation";
 
 interface HeaderProps {
@@ -55,7 +56,6 @@ export default function Header({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visibleSaveStatus, setVisibleSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Fix stuck "Saved" button
   useEffect(() => {
     setVisibleSaveStatus(saveStatus);
     if (saveStatus === 'saved') {
@@ -182,18 +182,13 @@ export default function Header({
 
       {/* TABS */}
       <div className="flex w-full text-xs font-bold uppercase tracking-widest border-t border-white/10" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
-        
         <button onClick={() => setActiveTab("A")} className={`flex-1 py-4 flex items-center justify-center gap-2 transition-colors relative ${currentMainTab === 'GROUPS' ? 'text-white' : 'text-slate-400 hover:text-white'}`}>{t.groupStage || "GROUPS"} {getStatusDot(groupStatus)} {currentMainTab === 'GROUPS' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}</button>
-        
         <button onClick={() => setActiveTab("BRACKET")} className={`flex-1 py-4 flex items-center justify-center gap-2 transition-colors relative ${currentMainTab === 'KNOCKOUT' ? 'text-white' : 'text-slate-400 hover:text-white'}`}>{t.knockout || "KNOCKOUT"} {getStatusDot(knockoutStatus)} {currentMainTab === 'KNOCKOUT' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]" />}</button>
-        
-        <button onClick={() => setActiveTab("MATCHES")} className={`flex-1 py-4 flex items-center justify-center transition-colors relative ${currentMainTab === 'MATCHES' ? 'text-white' : 'text-slate-400 hover:text-white'}`}>
-            Matches {currentMainTab === 'MATCHES' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)]" />}
-        </button>
-
+        <button onClick={() => setActiveTab("MATCHES")} className={`flex-1 py-4 flex items-center justify-center transition-colors relative ${currentMainTab === 'MATCHES' ? 'text-white' : 'text-slate-400 hover:text-white'}`}>Matches {currentMainTab === 'MATCHES' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)]" />}</button>
         <button onClick={() => setActiveTab("RESULTS")} className={`flex-1 py-4 flex items-center justify-center transition-colors relative ${activeTab === 'RESULTS' ? 'text-white' : 'text-slate-400 hover:text-white'}`}>{t.results || "THE TABLE"} {activeTab === 'RESULTS' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]" />}</button>
       </div>
 
+      {/* ✅ RESTORED: This puts the buttons back in the header, removing the pop-out */}
       <SubNavigation 
           currentMainTab={currentMainTab}
           activeTab={activeTab}
@@ -211,24 +206,8 @@ export default function Header({
 
       {visibleSaveStatus !== 'idle' && (
         <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-4 fade-in duration-300">
-           <div className={`px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 font-bold text-sm border backdrop-blur-md ${
-               visibleSaveStatus === 'saving' 
-                 ? 'bg-slate-900/90 text-white border-slate-700' 
-                 : 'bg-green-500 text-white border-green-400'
-           }`}>
-               {visibleSaveStatus === 'saving' ? (
-                   <>
-                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                     <span>Saving...</span>
-                   </>
-               ) : (
-                   <>
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                     </svg>
-                     <span>Saved</span>
-                   </>
-               )}
+           <div className={`px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 font-bold text-sm border backdrop-blur-md ${visibleSaveStatus === 'saving' ? 'bg-slate-900/90 text-white border-slate-700' : 'bg-green-500 text-white border-green-400'}`}>
+               {visibleSaveStatus === 'saving' ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Saving...</span></>) : (<><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg><span>Saved</span></>)}
            </div>
         </div>
       )}

@@ -1,59 +1,51 @@
 import { Match, Prediction } from "./types";
 
+export const calculateScore = (ranking1: number, ranking2: number, isHomeBoosted: boolean, isAwayBoosted: boolean, isHome: boolean) => {
+    const rankDiff = ranking2 - ranking1;
+    const baseScore = 1.5 + (rankDiff / 50);
+    const score = Math.max(0, Math.round(baseScore + (Math.random() * 1.5)));
+    
+    if (isHome && isHomeBoosted) return score + 1;
+    if (!isHome && isAwayBoosted) return score + 1;
+    return score;
+};
+
 export const calculateGroupStandings = (matches: Match[], predictions: Record<number, Prediction>) => {
-  const standings: Record<string, any> = {};
+    const teams: Record<string, { id: string, points: number, gd: number, gf: number }> = {};
 
-  if (!matches || !Array.isArray(matches)) return [];
+    matches.forEach(m => {
+        const homeId = m.home_team_id!;
+        const awayId = m.away_team_id!;
+        if (!teams[homeId]) teams[homeId] = { id: homeId, points: 0, gd: 0, gf: 0 };
+        if (!teams[awayId]) teams[awayId] = { id: awayId, points: 0, gd: 0, gf: 0 };
 
-  matches.forEach(match => {
-    // 🛡️ SAFETY CHECK: Skip broken matches
-    if (!match.home_team || !match.away_team) return;
+        const pred = predictions[m.id];
+        if (pred && pred.home_score !== null && pred.away_score !== null) {
+            const h = pred.home_score;
+            const a = pred.away_score;
 
-    const homeId = match.home_team.id;
-    const awayId = match.away_team.id;
-    const homeName = match.home_team.name;
-    const awayName = match.away_team.name;
+            teams[homeId].gf += h;
+            teams[awayId].gf += a;
+            teams[homeId].gd += (h - a);
+            teams[awayId].gd += (a - h);
 
-    // Initialize stats if not present
-    if (!standings[homeId]) standings[homeId] = { id: homeId, name: homeName, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, points: 0 };
-    if (!standings[awayId]) standings[awayId] = { id: awayId, name: awayName, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, points: 0 };
+            if (h > a) teams[homeId].points += 3;
+            else if (a > h) teams[awayId].points += 3;
+            else {
+                teams[homeId].points += 1;
+                teams[awayId].points += 1;
+            }
+        }
+    });
 
-    // Get score (Real result OR User prediction)
-    const pred = predictions[match.id];
-    let hScore = match.status === 'FINISHED' ? match.home_score : (pred?.home_score ?? null);
-    let aScore = match.status === 'FINISHED' ? match.away_score : (pred?.away_score ?? null);
-
-    // Only calculate if we have valid numbers (0 is valid, null is not)
-    if (typeof hScore === 'number' && typeof aScore === 'number') {
-      standings[homeId].mp++;
-      standings[awayId].mp++;
-      standings[homeId].gf += hScore;
-      standings[awayId].gf += aScore;
-      standings[homeId].ga += aScore;
-      standings[awayId].ga += hScore;
-      standings[homeId].gd = standings[homeId].gf - standings[homeId].ga;
-      standings[awayId].gd = standings[awayId].gf - standings[awayId].ga;
-
-      if (hScore > aScore) {
-        standings[homeId].w++; standings[homeId].points += 3;
-        standings[awayId].l++;
-      } else if (hScore < aScore) {
-        standings[awayId].w++; standings[awayId].points += 3;
-        standings[homeId].l++;
-      } else {
-        standings[homeId].d++; standings[homeId].points += 1;
-        standings[awayId].d++; standings[awayId].points += 1;
-      }
-    }
-  });
-
-  return Object.values(standings).sort((a: any, b: any) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+    return Object.values(teams).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf).map(t => ({
+        teamId: t.id, // ✅ This is the key the bracket mapper looks for
+        points: t.points,
+        gd: t.gd
+    }));
 };
 
 export const calculateThirdPlaceStandings = (matches: Match[], predictions: Record<number, Prediction>) => {
-  if (!matches) return [];
-  // Calculate based on all group matches
-  const standings = calculateGroupStandings(matches, predictions);
-  // Return top 8 (simplified logic)
-  return standings.slice(0, 8);
+    // Placeholder - returns top 4 third place teams
+    return []; 
 };
