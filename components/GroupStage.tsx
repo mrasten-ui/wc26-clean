@@ -61,32 +61,44 @@ export default function GroupStage({
       }
   };
 
-  // --- SCROLL DETECTION LOGIC (FIXED) ---
+  // --- SCROLL DETECTION LOGIC (OLD RELIABLE) ---
   const [showSticky, setShowSticky] = useState(false);
-  const triggerRef = useRef<HTMLDivElement>(null); // Watch this invisible line, not the whole table
+  const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-      const observer = new IntersectionObserver(
-          ([entry]) => {
-              // If the trigger line is NOT visible, and it's above the viewport (top < 0),
-              // then we have scrolled past the start of the table.
-              const isPastTableTop = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-              setShowSticky(isPastTableTop);
-          },
-          { threshold: 0, rootMargin: "-120px 0px 0px 0px" } // Offset for header height
-      );
+    const handleScroll = () => {
+      if (!tableRef.current) return;
 
-      if (triggerRef.current) observer.observe(triggerRef.current);
-      return () => observer.disconnect();
-  }, [activeTab]);
+      // Get the rectangle of the table relative to the viewport
+      const rect = tableRef.current.getBoundingClientRect();
+      
+      // Calculate trigger point:
+      // When the BOTTOM of the table passes the header area (approx 120px from top),
+      // it means the table is gone/hidden, so we show the sticky banner.
+      const headerOffset = 130; // 112px header + slight buffer
+      const isTableHidden = rect.bottom < headerOffset;
+
+      setShowSticky(isTableHidden);
+    };
+
+    // Listen to scroll events
+    window.addEventListener("scroll", handleScroll);
+    
+    // Check immediately on load
+    handleScroll();
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [activeTab]); // Re-run if we switch groups
 
   // --- Sticky Banner Component ---
   const StickyBanner = () => (
       <div 
-        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 shadow-xl transition-all duration-300 ease-in-out z-40 ${
-            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
+        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 z-30 shadow-2xl transition-all duration-300 ease-in-out ${
+            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'
         }`}
-        style={{ top: '108px' }} // Adjusted to sit snugly under the sub-nav
+        // 112px is the standard height for Header (64) + SubNav (48). 
+        // Adjust this if your header is taller/shorter.
+        style={{ top: '112px' }} 
       >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar px-2">
               {standings.slice(0, 4).map((team, idx) => {
@@ -107,15 +119,12 @@ export default function GroupStage({
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6 pb-24">
       
-      {/* Sticky Banner (Fixed Position) */}
+      {/* Sticky Banner (Always rendered, hidden via CSS transform) */}
       <StickyBanner />
 
-      {/* --- INVISIBLE TRIGGER LINE --- */}
-      {/* This 1px line sits right above the table. When it scrolls off-screen, the banner appears. */}
-      <div ref={triggerRef} className="w-full h-px opacity-0 pointer-events-none" />
-
       {/* --- GROUP TABLE --- */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+      {/* We attach the ref here so we can track its position */}
+      <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
              <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Group {activeTab} Standings</h3>
              <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Top 2 Qualify</span>
