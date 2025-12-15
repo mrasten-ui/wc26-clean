@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SupabaseClient } from '@supabase/supabase-js'; // Use core package
+import { SupabaseClient } from '@supabase/supabase-js';
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions } from '../lib/types';
 
 export function usePrediction(
@@ -21,15 +21,25 @@ export function usePrediction(
   const handlePredict = async (matchId: number, field: string, value: any) => {
     if (!user) return;
 
-    setPredictions((prev) => ({
-      ...prev,
-      [matchId]: {
-        ...prev[matchId],
+    setPredictions((prev) => {
+      const existing = prev[matchId] || {};
+      
+      // ✅ CRITICAL FIX: Ensure both scores exist as null (not undefined) if missing
+      const mergedPrediction = {
         match_id: matchId,
         user_id: user.id,
-        [field]: value
-      }
-    }));
+        home_score: existing.home_score ?? null, 
+        away_score: existing.away_score ?? null, 
+        winner_id: existing.winner_id ?? null,
+        ...existing, // Spread existing properties
+        [field]: value // Overwrite the specific field being changed
+      };
+
+      return {
+        ...prev,
+        [matchId]: mergedPrediction
+      };
+    });
 
     setSaveStatus('saving');
 
@@ -50,8 +60,6 @@ export function usePrediction(
     }
   };
 
-  // 2. Handle Revealing Matches
-  // ✅ FIXED: Added '?' to rivalId so it is optional.
   const handleReveal = (matchId: number, rivalId?: string) => {
     if (revealCount > 0) {
         setRevealedMatches(prev => {
@@ -61,20 +69,13 @@ export function usePrediction(
         });
         setRevealCount(prev => Math.max(0, prev - 1));
     } else {
-        alert("No reveals left! Earn more by making correct predictions.");
+        alert("No reveals left!");
     }
   };
 
-  // 3. Handle Auto-Fill Logic
   const handleAutoFill = async (teams: any[], activeTab: string) => {
-      // Placeholder logic
+      // Placeholder
   };
 
-  return {
-    handlePredict,
-    handleReveal,
-    revealedMatches,
-    saveStatus,
-    handleAutoFill
-  };
+  return { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill };
 }
