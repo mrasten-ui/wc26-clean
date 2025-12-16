@@ -251,4 +251,4 @@ export default function Home() {
       <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} t={t} lang={lang} />
     </div>
   );
-}
+} 
