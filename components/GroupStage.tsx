@@ -61,34 +61,48 @@ export default function GroupStage({
       }
   };
 
-  // --- SCROLL SENTINEL LOGIC ---
+  // --- PRECISE SCROLL TRACKING ---
   const [showSticky, setShowSticky] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-      const observer = new IntersectionObserver(
-          ([entry]) => {
-              // Logic: If the sentinel (bottom of table) is ABOVE the viewport (boundingClientRect.top < 0),
-              // it means we have scrolled past the table completely.
-              // We invert this logic slightly: if it's NOT intersecting and is above us, show banner.
-              const isAboveViewport = entry.boundingClientRect.top < 120; // 120px buffer for header
-              setShowSticky(isAboveViewport);
-          },
-          { threshold: 0, rootMargin: "-100px 0px 0px 0px" } // Offset to account for header height
-      );
+    const handleScroll = () => {
+      if (!tableRef.current) return;
 
-      if (sentinelRef.current) observer.observe(sentinelRef.current);
-      return () => observer.disconnect();
+      // Get the position of the Table relative to the viewport
+      const rect = tableRef.current.getBoundingClientRect();
+      
+      // THE LOGIC:
+      // The header stack (Logo + Nav + SubNav) ends around 170px.
+      // If rect.bottom < 170, the table has completely scrolled UP past the header. -> SHOW BANNER
+      // If rect.bottom >= 170, the table is at least partially visible. -> HIDE BANNER
+      const headerThreshold = 180; // A little buffer (170px + 10px)
+      
+      const shouldShow = rect.bottom < headerThreshold;
+      
+      // Only update state if it changes to prevent re-renders
+      setShowSticky(prev => prev !== shouldShow ? shouldShow : prev);
+    };
+
+    // Attach listener
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    // Check initially (in case user reloads halfway down the page)
+    handleScroll();
+
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [activeTab]);
 
   // --- Sticky Banner Component ---
   const StickyBanner = () => (
       <div 
-        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-50 ${
-            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        className={`fixed left-0 right-0 border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-30 ${
+            showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
         }`}
-        // Positioned to sit right under the sub-nav (approx 112px down)
-        style={{ top: '112px' }} 
+        style={{ 
+            top: '170px', // Matches the end of your SubNav
+            backgroundColor: '#172554' // Deep Navy Blue
+        }} 
       >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar px-2">
               {standings.slice(0, 4).map((team, idx) => {
@@ -113,7 +127,8 @@ export default function GroupStage({
       <StickyBanner />
 
       {/* --- GROUP TABLE --- */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 relative">
+      {/* Attached Ref here to track position */}
+      <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 relative">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
              <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Group {activeTab} Standings</h3>
              <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Top 2 Qualify</span>
@@ -150,10 +165,6 @@ export default function GroupStage({
                   )}
               </tbody>
           </table>
-          
-          {/* ✅ THE SENTINEL: An invisible pixel at the bottom of the table */}
-          {/* When this scrolls UP past the header, the banner shows. */}
-          <div ref={sentinelRef} className="absolute bottom-10 left-0 w-full h-1 bg-transparent pointer-events-none" />
       </div>
 
       {/* --- MATCH CARDS --- */}
