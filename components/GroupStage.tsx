@@ -69,26 +69,20 @@ export default function GroupStage({
     const handleScroll = () => {
       if (!tableRef.current) return;
 
-      // Get the position of the Table relative to the viewport
       const rect = tableRef.current.getBoundingClientRect();
       
-      // THE LOGIC:
-      // The header stack (Logo + Nav + SubNav) ends around 170px.
-      // If rect.bottom < 170, the table has completely scrolled UP past the header. -> SHOW BANNER
-      // If rect.bottom >= 170, the table is at least partially visible. -> HIDE BANNER
-      const headerThreshold = 180; // A little buffer (170px + 10px)
+      // ✅ ADJUSTED THRESHOLD:
+      // Since the header stack is taller (~215px), we wait until the table
+      // touches that point before showing the banner.
+      const headerThreshold = 220; 
       
       const shouldShow = rect.bottom < headerThreshold;
       
-      // Only update state if it changes to prevent re-renders
       setShowSticky(prev => prev !== shouldShow ? shouldShow : prev);
     };
 
-    // Attach listener
     window.addEventListener("scroll", handleScroll, { passive: true });
-    
-    // Check initially (in case user reloads halfway down the page)
-    handleScroll();
+    handleScroll(); // Check initially
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, [activeTab]);
@@ -96,11 +90,12 @@ export default function GroupStage({
   // --- Sticky Banner Component ---
   const StickyBanner = () => (
       <div 
-        className={`fixed left-0 right-0 border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-30 ${
+        className={`fixed left-0 right-0 border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-20 ${
             showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
         }`}
         style={{ 
-            top: '170px', // Matches the end of your SubNav
+            // ✅ POSITION FIX: Increased to 215px to sit exactly under the Group Buttons
+            top: '215px', 
             backgroundColor: '#172554' // Deep Navy Blue
         }} 
       >
@@ -127,7 +122,6 @@ export default function GroupStage({
       <StickyBanner />
 
       {/* --- GROUP TABLE --- */}
-      {/* Attached Ref here to track position */}
       <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 relative">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
              <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Group {activeTab} Standings</h3>
