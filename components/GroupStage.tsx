@@ -72,9 +72,9 @@ export default function GroupStage({
       const rect = tableRef.current.getBoundingClientRect();
       
       // ✅ ADJUSTED THRESHOLD:
-      // Since the header stack is taller (~215px), we wait until the table
-      // touches that point before showing the banner.
-      const headerThreshold = 220; 
+      // We set this to 200px. This effectively says: 
+      // "When the bottom of the table touches the bottom of the header stack, trigger the banner."
+      const headerThreshold = 200; 
       
       const shouldShow = rect.bottom < headerThreshold;
       
@@ -82,7 +82,7 @@ export default function GroupStage({
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Check initially
+    handleScroll(); 
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, [activeTab]);
@@ -94,8 +94,8 @@ export default function GroupStage({
             showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
         }`}
         style={{ 
-            // ✅ POSITION FIX: Increased to 215px to sit exactly under the Group Buttons
-            top: '215px', 
+            // ✅ MIDDLE GROUND: 190px should sit perfectly flush under the A-L buttons
+            top: '190px', 
             backgroundColor: '#172554' // Deep Navy Blue
         }} 
       >
