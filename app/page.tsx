@@ -66,6 +66,7 @@ export default function Home() {
     (activeTab === "MATCHES" ? "MATCHES" : 
     "GROUPS")));
 
+  // Relaxed filter to ensure knockout matches (which have codes, not team IDs initially) are visible
   const allValidMatches = matches.filter(m => (m.home_team && m.away_team) || m.home_code || m.stage !== 'GROUP');
 
   const matchesByGroup = allValidMatches.reduce((acc, m) => { 
@@ -75,19 +76,23 @@ export default function Home() {
       return acc; 
   }, {} as Record<string, Match[]>);
 
+  // --- COMPLETION LOGIC ---
   const allGroupMatches = allValidMatches.filter(m => m.stage === 'GROUP');
-  const totalGroupMatches = allGroupMatches.length; 
+  const totalGroupMatches = allGroupMatches.length; // Should be 72
   
   const predictedGroupCount = allGroupMatches.filter(m => {
       const p = predictions[m.id];
+      // Strict check: Ensure both scores are numbers (so 0 counts)
       return p && typeof p.home_score === 'number' && typeof p.away_score === 'number';
   }).length;
   
+  // Strict check: Unlock bracket ONLY when all group games are predicted
   const isTournamentComplete = totalGroupMatches > 0 && predictedGroupCount === totalGroupMatches;
+  
   const matchesCompletedCount = allValidMatches.filter((m: any) => m.home_score !== undefined && m.home_score !== null).length;
   const hasPredictions = Object.keys(predictions).length > 0;
   
-  // Standings Calculation
+  // --- BRACKET CALCULATIONS ---
   // @ts-ignore
   const groupStandings: Record<string, any> = {};
   GROUPS.forEach(g => { groupStandings[g] = calculateGroupStandings(matchesByGroup[g] || [], predictions); });
@@ -102,13 +107,16 @@ export default function Home() {
 
   const getTeamNameForComponent = (id: string, def: string) => getTeamName(id, def, lang, showNicknames);
 
+  // --- STATUS CHECKERS (DOT COLORS) ---
   const getGroupStatus = (gid: string): StatusType => { 
       const ms = matchesByGroup[gid] || []; 
       if (ms.length === 0) return 'empty';
+      
       const completedCount = ms.filter(m => {
           const p = predictions[m.id];
           return p && typeof p.home_score === 'number' && typeof p.away_score === 'number';
       }).length;
+      
       if (completedCount === 0) return 'empty';
       if (completedCount === ms.length) return 'complete';
       return 'partial';
@@ -129,12 +137,15 @@ export default function Home() {
   
   const getKnockoutStatus = (stage: string): StatusType => {
       if (stage === 'TREE') return 'partial'; 
+      
       const stageMatches = matches.filter(m => m.stage === stage);
       if (stageMatches.length === 0) return 'empty';
+      
       const predictedCount = stageMatches.filter(m => predictions[m.id]?.winner_id).length;
-      if (predictedCount === 0) return 'empty'; 
-      if (predictedCount === stageMatches.length) return 'complete'; 
-      return 'partial'; 
+      
+      if (predictedCount === 0) return 'empty'; // Gray
+      if (predictedCount === stageMatches.length) return 'complete'; // Green
+      return 'partial'; // Orange
   };
 
   const handleLogout = async () => {
@@ -144,7 +155,7 @@ export default function Home() {
   
   const handleClearPredictions = async () => { 
     if (!user || !user.id) return;
-    if (confirm("Are you sure?")) {
+    if (confirm("Are you sure you want to clear ALL your predictions?")) {
       const { error } = await supabase.from('predictions').delete().eq('user_id', user.id);
       if (!error) {
         setPredictions({});
@@ -159,6 +170,12 @@ export default function Home() {
   const handleSmartAutoFill = () => isBracketMode ? handleKnockoutAutoFill() : handleGroupAutoFill();
   const handleKnockoutAutoFill = () => { setActiveTab('KNOCKOUT'); setActiveKnockoutRound('R32'); setIsAutoFillModalOpen(true); };
   const handleGroupAutoFill = () => { setIsAutoFillModalOpen(true); }; 
+
+  const handleSmartClear = () => {
+      if(confirm(lang === 'no' ? "Er du sikker? Dette sletter alle tips i denne delen." : "Are you sure? This will delete all predictions in this section.")) {
+          handleClearPredictions();
+      }
+  };
 
   if (loading) return <LoadingComponent t={t} COLORS={COLORS} />;
 
@@ -223,16 +240,32 @@ export default function Home() {
                 revealedMatches={revealedMatches} 
                 t={t} 
                 lang={lang} 
-                // ✅ PASS STANDINGS PROP
                 standings={groupStandings[activeTab] || []}
+                // ✅ ADDED: Pass all standings for the summary view
+                allStandings={groupStandings} 
              />
         )}
         
         {activeTab === "SUMMARY" && (
-           <div className="bg-white p-6 rounded-xl shadow-xl text-center">
-               <h2 className="font-bold text-slate-800">Group Summary</h2>
-               <p className="text-sm text-slate-500">Coming soon in refactored version.</p>
-           </div>
+            // ✅ UPDATED: We use GroupStage for the summary view now
+            <GroupStage 
+                getTeamName={getTeamNameForComponent}
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab}
+                matchesByGroup={matchesByGroup} 
+                predictions={predictions}
+                handlePredict={handlePredict} 
+                leaderboard={leaderboard} 
+                allPredictions={allPredictions} 
+                user={user} 
+                revealCount={revealCount} 
+                handleRevealSelection={handleReveal} 
+                revealedMatches={revealedMatches} 
+                t={t} 
+                lang={lang} 
+                standings={[]} 
+                allStandings={groupStandings} 
+             />
         )}
       </div>
 

@@ -33,6 +33,7 @@ interface GroupStageProps {
   lang: string;
   getTeamName: (id: string, def: string) => string;
   standings: Standing[];
+  allStandings: Record<string, Standing[]>; // ✅ New Prop
 }
 
 export default function GroupStage({
@@ -42,8 +43,135 @@ export default function GroupStage({
   predictions,
   handlePredict,
   getTeamName,
-  standings
+  standings,
+  allStandings // ✅ Destructure
 }: GroupStageProps) {
+  
+  // --- 1. HANDLE SUMMARY VIEW SEPARATELY ---
+  if (activeTab === "SUMMARY") {
+      
+      // Calculate 3rd Place Rankings across ALL groups
+      const thirdPlaceTeams: (Standing & { group: string })[] = [];
+      
+      Object.entries(allStandings).forEach(([group, teams]) => {
+          if (teams.length >= 3) {
+              thirdPlaceTeams.push({ ...teams[2], group }); // Get the 3rd team
+          }
+      });
+
+      // Sort: Points -> GD -> GF
+      thirdPlaceTeams.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+
+      // Top 8 qualify
+      const qualifiedThirdIds = new Set(thirdPlaceTeams.slice(0, 8).map(t => t.teamId));
+
+      return (
+        <div className="w-full max-w-5xl mx-auto space-y-8 pb-12">
+           <div className="text-center py-4">
+              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Tournament Tables</h2>
+              <p className="text-slate-500 text-sm">Review all group standings and 3rd place qualifiers.</p>
+           </div>
+
+           {/* --- GRID OF TABLES --- */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {GROUPS.map(group => {
+                 const groupTeams = allStandings[group] || [];
+                 return (
+                    <div key={group} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                       <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
+                          <span className="font-black text-slate-700 text-sm">GROUP {group}</span>
+                       </div>
+                       <table className="w-full text-[10px] sm:text-xs">
+                          <thead>
+                             <tr className="bg-slate-50/50 text-slate-400 border-b border-slate-100">
+                                <th className="p-2 w-6 text-center">#</th>
+                                <th className="p-2 text-left">Team</th>
+                                <th className="p-2 w-8 text-center">PTS</th>
+                             </tr>
+                          </thead>
+                          <tbody>
+                             {groupTeams.map((team, idx) => {
+                                const isTop2 = idx < 2;
+                                const isThird = idx === 2;
+                                const isQualifiedThird = isThird && qualifiedThirdIds.has(team.teamId);
+                                
+                                let rowClass = "border-b border-slate-50 last:border-0";
+                                let rankColor = "text-slate-400";
+                                let indicator = null;
+
+                                if (isTop2) {
+                                   rowClass += " bg-green-50/30";
+                                   rankColor = "text-green-600";
+                                   indicator = <div className="w-1.5 h-1.5 rounded-full bg-green-500" />;
+                                } else if (isQualifiedThird) {
+                                   rowClass += " bg-blue-50/30";
+                                   rankColor = "text-blue-600";
+                                   indicator = <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />;
+                                }
+
+                                return (
+                                   <tr key={team.teamId} className={rowClass}>
+                                      <td className={`p-2 text-center font-bold ${rankColor}`}>{idx + 1}</td>
+                                      <td className="p-2 flex items-center gap-2">
+                                         <img src={getFlagUrl(team.teamId)} className="w-5 h-3.5 object-cover rounded shadow-sm" />
+                                         <span className="font-bold text-slate-700 truncate max-w-[100px]">{getTeamName(team.teamId, team.teamId)}</span>
+                                         <span className="ml-auto">{indicator}</span>
+                                      </td>
+                                      <td className="p-2 text-center font-black text-slate-800">{team.points}</td>
+                                   </tr>
+                                );
+                             })}
+                          </tbody>
+                       </table>
+                    </div>
+                 )
+              })}
+           </div>
+
+           {/* --- 3RD PLACE RANKING TABLE --- */}
+           <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+               <div className="bg-slate-900 text-white px-4 py-3 flex justify-between items-center">
+                   <h3 className="font-bold uppercase tracking-wider text-sm">3rd Place Rankings</h3>
+                   <span className="text-[10px] font-bold bg-blue-500 text-white px-2 py-0.5 rounded-full">Top 8 Qualify</span>
+               </div>
+               <table className="w-full text-xs text-left">
+                   <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                         <th className="p-3 text-center">#</th>
+                         <th className="p-3 text-center">Grp</th>
+                         <th className="p-3">Team</th>
+                         <th className="p-3 text-center">GD</th>
+                         <th className="p-3 text-center font-bold">PTS</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      {thirdPlaceTeams.map((team, idx) => {
+                          const isQualified = idx < 8;
+                          return (
+                              <tr key={team.teamId} className={`border-b border-slate-100 ${isQualified ? 'bg-blue-50/20' : ''}`}>
+                                  <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                                  <td className="p-3 text-center font-bold text-slate-600">{team.group}</td>
+                                  <td className="p-3 flex items-center gap-2">
+                                      <img src={getFlagUrl(team.teamId)} className="w-5 h-3.5 object-cover rounded" />
+                                      <span className={`font-bold ${isQualified ? 'text-blue-700' : 'text-slate-500'}`}>{getTeamName(team.teamId, team.teamId)}</span>
+                                      {isQualified && <span className="ml-auto text-[10px] font-bold text-blue-500">Q</span>}
+                                  </td>
+                                  <td className="p-3 text-center text-slate-500">{team.gd > 0 ? `+${team.gd}` : team.gd}</td>
+                                  <td className="p-3 text-center font-black text-slate-900">{team.points}</td>
+                              </tr>
+                          )
+                      })}
+                      {thirdPlaceTeams.length === 0 && (
+                          <tr><td colSpan={5} className="p-6 text-center text-slate-400">Predict matches to see rankings.</td></tr>
+                      )}
+                   </tbody>
+               </table>
+           </div>
+        </div>
+      );
+  }
+
+  // --- STANDARD GROUP VIEW LOGIC BELOW (Matches, Sticky Banner, etc.) ---
   
   const groupMatches = matchesByGroup[activeTab] || [];
   const sortedMatches = [...groupMatches].sort((a, b) => new Date(a.kickoff_time).getTime() - new Date(b.kickoff_time).getTime());
@@ -68,34 +196,23 @@ export default function GroupStage({
   useEffect(() => {
     const handleScroll = () => {
       if (!tableRef.current) return;
-
       const rect = tableRef.current.getBoundingClientRect();
-      
-      // Threshold: When bottom of table touches bottom of header stack (~200px)
       const headerThreshold = 200; 
-      
       const shouldShow = rect.bottom < headerThreshold;
-      
       setShowSticky(prev => prev !== shouldShow ? shouldShow : prev);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll(); 
-
     return () => window.removeEventListener("scroll", handleScroll);
   }, [activeTab]);
 
-  // --- Sticky Banner Component ---
   const StickyBanner = () => (
       <div 
-        // ✅ COLOR FIX: Changed to bg-slate-900/95 + backdrop-blur to match header seamlessy
         className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-20 ${
             showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
         }`}
-        style={{ 
-            top: '190px', // Positioned under the sub-nav
-            // backgroundColor removed in favor of tailwind classes above
-        }} 
+        style={{ top: '190px' }} 
       >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar px-2">
               {standings.slice(0, 4).map((team, idx) => {
@@ -115,11 +232,8 @@ export default function GroupStage({
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6 pb-24">
-      
-      {/* Sticky Banner */}
       <StickyBanner />
 
-      {/* --- GROUP TABLE --- */}
       <div ref={tableRef} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 relative">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
              <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">Group {activeTab} Standings</h3>
@@ -159,7 +273,6 @@ export default function GroupStage({
           </table>
       </div>
 
-      {/* --- MATCH CARDS --- */}
       <div className="flex flex-col gap-4">
         {sortedMatches.map((match) => {
           const homeTeamName = getTeamName(match.home_team_id || '', match.home_team?.name || 'Home');
@@ -169,7 +282,6 @@ export default function GroupStage({
           const isLocked = match.status === 'FINISHED' || match.status === 'IN_PLAY';
           const isPredicted = pred.home_score !== null && pred.away_score !== null && pred.home_score !== undefined && pred.away_score !== undefined;
 
-          // 0-0 LOGIC
           const handleScoreChange = (side: 'home_score' | 'away_score', val: number) => {
              const rivalSide = side === 'home_score' ? 'away_score' : 'home_score';
              const rivalScore = pred[rivalSide];
@@ -183,39 +295,21 @@ export default function GroupStage({
           const matchTime = new Date(match.kickoff_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           return (
-            <div 
-              key={match.id} 
-              className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all duration-300 ${
-                  isPredicted 
-                  ? 'border-green-400 ring-1 ring-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]' 
-                  : 'border-slate-200'
-              }`}
-            >
+            <div key={match.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all duration-300 ${isPredicted ? 'border-green-400 ring-1 ring-green-400 shadow-[0_0_15px_rgba(74,222,128,0.2)]' : 'border-slate-200'}`}>
                <div className="bg-slate-50/80 px-4 py-2 flex justify-between items-center text-[10px] font-bold uppercase text-slate-500 border-b border-slate-100 tracking-wider">
                   <span>{matchDate} <span className="text-slate-300 mx-1">|</span> {matchTime}</span>
                   <span className="text-slate-400">{match.venue}</span>
                </div>
-
                <div className="flex items-center justify-between p-4">
                   <div className="flex-1 flex flex-col items-center gap-2">
                      <img src={getFlagUrl(match.home_team_id || '')} className="w-12 h-8 object-cover rounded shadow-sm ring-1 ring-black/5" />
                      <span className={`text-xs font-bold text-center leading-tight ${isPredicted ? 'text-green-900' : 'text-slate-700'}`}>{homeTeamName}</span>
                   </div>
-
                   <div className="flex items-center gap-4">
-                      <ScoreStepper 
-                        value={pred.home_score} 
-                        onChange={(val) => handleScoreChange('home_score', val)} 
-                        disabled={isLocked} 
-                      />
+                      <ScoreStepper value={pred.home_score} onChange={(val) => handleScoreChange('home_score', val)} disabled={isLocked} />
                       <span className="text-slate-300 font-black text-lg mt-2">-</span>
-                      <ScoreStepper 
-                        value={pred.away_score} 
-                        onChange={(val) => handleScoreChange('away_score', val)} 
-                        disabled={isLocked} 
-                      />
+                      <ScoreStepper value={pred.away_score} onChange={(val) => handleScoreChange('away_score', val)} disabled={isLocked} />
                   </div>
-
                   <div className="flex-1 flex flex-col items-center gap-2">
                      <img src={getFlagUrl(match.away_team_id || '')} className="w-12 h-8 object-cover rounded shadow-sm ring-1 ring-black/5" />
                      <span className={`text-xs font-bold text-center leading-tight ${isPredicted ? 'text-green-900' : 'text-slate-700'}`}>{awayTeamName}</span>
@@ -227,10 +321,7 @@ export default function GroupStage({
       </div>
 
       <div className="pt-6 border-t border-slate-200/50">
-          <button 
-             onClick={handleNext}
-             className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 group active:scale-95"
-          >
+          <button onClick={handleNext} className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 group active:scale-95">
               <span>{nextGroup ? `Next: Group ${nextGroup}` : "Go to Summary"}</span>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
                   <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
