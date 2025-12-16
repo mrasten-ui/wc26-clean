@@ -71,9 +71,7 @@ export default function GroupStage({
 
       const rect = tableRef.current.getBoundingClientRect();
       
-      // ✅ ADJUSTED THRESHOLD:
-      // We set this to 200px. This effectively says: 
-      // "When the bottom of the table touches the bottom of the header stack, trigger the banner."
+      // Threshold: When bottom of table touches bottom of header stack (~200px)
       const headerThreshold = 200; 
       
       const shouldShow = rect.bottom < headerThreshold;
@@ -90,13 +88,13 @@ export default function GroupStage({
   // --- Sticky Banner Component ---
   const StickyBanner = () => (
       <div 
-        className={`fixed left-0 right-0 border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-20 ${
+        // ✅ COLOR FIX: Changed to bg-slate-900/95 + backdrop-blur to match header seamlessy
+        className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md border-b border-white/10 p-2 shadow-2xl transition-all duration-300 ease-in-out z-20 ${
             showSticky ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
         }`}
         style={{ 
-            // ✅ MIDDLE GROUND: 190px should sit perfectly flush under the A-L buttons
-            top: '190px', 
-            backgroundColor: '#172554' // Deep Navy Blue
+            top: '190px', // Positioned under the sub-nav
+            // backgroundColor removed in favor of tailwind classes above
         }} 
       >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar px-2">
