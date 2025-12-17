@@ -1,58 +1,75 @@
-export type MatchStatus = 'SCHEDULED' | 'FINISHED' | 'IN_PLAY';
+export interface UserData {
+  id: string;
+  email?: string;
+  username?: string;
+}
 
 export interface TeamData {
   id: string;
   name: string;
   group_id: string;
-  fifa_ranking?: number; // ✅ FIXED: Added this field
+  fifa_ranking?: number; // Added for AI calculation
+  iso_code?: string;
 }
 
 export interface Match {
   id: number;
   home_team_id: string | null;
   away_team_id: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
+  kickoff_time: string;
+  stage: string;
+  status: string;
+  venue?: string;
+  home_team?: { name: string; group_id: string; tbd_code?: string };
+  away_team?: { name: string; group_id: string; tbd_code?: string };
   home_code?: string;
   away_code?: string;
-  home_score: number | null;
-  away_score: number | null;
-  kickoff_time: string;
-  venue: string;
-  stage: string;
-  status: MatchStatus; // ✅ FIXED: Supports IN_PLAY
   winner_id?: string | null;
-  home_team?: TeamData;
-  away_team?: TeamData;
 }
 
 export interface Prediction {
   match_id: number;
   user_id: string;
-  home_score: number | null;
-  away_score: number | null;
+  home_score?: number | null;
+  away_score?: number | null;
   winner_id?: string | null;
 }
 
-export interface UserData {
-  id: string;
-  email: string;
-  full_name?: string;
+export interface GlobalPredictions {
+  [matchId: number]: {
+    home_wins: number;
+    away_wins: number;
+    draws: number;
+    total: number;
+  };
 }
 
 export interface LeaderboardEntry {
   user_id: string;
-  full_name: string;
+  username: string;
   points: number;
   correct_scores: number;
-  correct_results: number;
+  correct_outcomes: number;
 }
 
-export type GlobalPredictions = Record<number, { home: number, away: number, draw: number }>;
+// ✅ Added Standing Interface here so it can be imported
+export interface Standing {
+  teamId: string;
+  points: number;
+  gd: number;
+  gf: number;
+  ga: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+}
 
 export interface BracketMap {
-  [key: string]: {
-      name: string;
-      sourceType: 'GROUP' | 'MATCH';
-      sourceId?: string | number;
-      predictedTeamId?: string | null; // ✅ FIXED: Allows nulls
+  [matchId: number]: {
+    home: string | null;
+    away: string | null;
   };
 }
