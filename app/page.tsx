@@ -1,5 +1,3 @@
-// app/page.tsx
-
 "use client";
 import { useState, Suspense, useEffect, useMemo } from "react"; 
 import { supabase } from "../lib/supabase"; 
@@ -166,7 +164,8 @@ export default function Home() {
                 }}
                 className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${currentMainTab === tab ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"}`}
              >
-                 {t[tab.toLowerCase()] || tab}
+                 {/* ✅ FIXED: Type assertion added here */}
+                 {(t as any)[tab.toLowerCase()] || tab}
              </button>
          ))}
       </div>
@@ -182,7 +181,7 @@ export default function Home() {
                 bracketMap={bracketMap}
                 teamsMap={teamsMap}
                 handlePredict={handlePredict}
-                isTournamentComplete={isTournamentComplete} // Toggle this to true to test bracket if groups aren't done
+                isTournamentComplete={isTournamentComplete} 
                 champion={champion}
                 t={t}
                 getTeamName={(id, def) => getTeamName(id, def, lang, showNicknames)}
@@ -221,7 +220,6 @@ export default function Home() {
       <AutoFillModal 
           isOpen={isAutoFillModalOpen} 
           onClose={() => setIsAutoFillModalOpen(false)} 
-          // ✅ FIXED: Pass allTeams AND the selected boosted teams
           onConfirm={(boostedTeams) => handleAutoFill(allTeams, activeTab, boostedTeams)} 
           allTeams={allTeams} 
           lang={lang} 
