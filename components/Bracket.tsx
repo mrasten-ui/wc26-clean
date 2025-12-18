@@ -2,7 +2,6 @@
 import { Match, Prediction, BracketMap, TeamData } from "../lib/types";
 import { getFlagUrl } from "../lib/flags";
 
-// ✅ FIXED INTERFACE: Includes all props passed by page.tsx
 interface BracketProps {
   activeKnockoutRound: string;
   setActiveKnockoutRound: (stage: string) => void;
@@ -214,4 +213,31 @@ export default function Bracket({
               <MatchCard key={match.id} match={match} />
             ))
           ) : (
-             <div className="bg-white p-12 rounded-xl text-center text-slate-400 border border-slate-200"><p className
+             <div className="bg-white p-12 rounded-xl text-center text-slate-400 border border-slate-200">
+               <p className="text-lg font-bold">{t.predictKnockout || 'Select a match to predict the winner.'}</p>
+             </div>
+          )
+        ) : (
+          <div className="bg-white p-8 rounded-xl text-center border-l-4 border-orange-400 shadow-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Locked</h3>
+            <p className="text-slate-500">{t.completeGroupPredictions || 'Complete all group stage predictions to unlock the Knockout Bracket!'}</p>
+          </div>
+        )}
+      </div>
+      
+      {stageMatches.length > 0 && isTournamentComplete && (
+          <div className="mt-8 pt-6 border-t border-slate-200/50">
+              <button 
+                 onClick={handleNext}
+                 className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 group active:scale-95"
+              >
+                  <span>{nextStage ? `Next: ${getStageName(nextStage, t)}` : "View Full Tree"}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 group-hover:translate-x-1 transition-transform">
+                      <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                  </svg>
+              </button>
+          </div>
+      )}
+    </div>
+  );
+}
