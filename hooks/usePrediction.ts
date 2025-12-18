@@ -1,5 +1,7 @@
+// hooks/usePrediction.ts
+
 import { useState, useCallback, useRef } from "react";
-import { SupabaseClient } from "@supabase/supabase-js"; // ✅ Fixed Import
+import { SupabaseClient } from "@supabase/supabase-js";
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions, TeamData } from "../lib/types";
 
 export function usePrediction(
@@ -59,8 +61,9 @@ export function usePrediction(
     }
   };
 
-  // --- 2. HELPING HAND LOGIC ---
-  const handleAutoFill = (allTeams: TeamData[], activeTab: string) => {
+  // --- 2. HELPING HAND LOGIC (FIXED) ---
+  // Now accepts boostedTeams (string[]) as the 3rd argument
+  const handleAutoFill = (allTeams: TeamData[], activeTab: string, boostedTeams: string[] = []) => {
       if (!user) return;
 
       const newPredictions = { ...predictions };
@@ -92,11 +95,16 @@ export function usePrediction(
           let awayScore = 0;
           let winnerId = null;
 
+          // Check for favorites boost
+          const isHomeBoosted = boostedTeams.includes(match.home_team_id || '');
+          const isAwayBoosted = boostedTeams.includes(match.away_team_id || '');
+
           if (match.stage === 'GROUP') {
              const homeStrength = getStrength(match.home_team_id);
              const awayStrength = getStrength(match.away_team_id);
              const randomFactor = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
              
+             // Base Logic: Lower Rank (Better) gets higher score
              if (homeStrength < awayStrength) { 
                  homeScore = 2 + Math.max(0, randomFactor);
                  awayScore = 0 + Math.max(0, randomFactor + 1);
@@ -104,6 +112,10 @@ export function usePrediction(
                  homeScore = 0 + Math.max(0, randomFactor + 1);
                  awayScore = 2 + Math.max(0, randomFactor);
              }
+
+             // APPLY BOOST
+             if (isHomeBoosted) homeScore += 1;
+             if (isAwayBoosted) awayScore += 1;
              
              newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore };
              updates.push({ match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore });
@@ -112,7 +124,11 @@ export function usePrediction(
              // Knockout Simple Logic
              const homeStr = getStrength(match.home_team_id);
              const awayStr = getStrength(match.away_team_id);
-             winnerId = homeStr < awayStr ? match.home_team_id : match.away_team_id;
+             
+             // If boosted, they win. If both boosted, rank decides.
+             if (isHomeBoosted && !isAwayBoosted) winnerId = match.home_team_id;
+             else if (isAwayBoosted && !isHomeBoosted) winnerId = match.away_team_id;
+             else winnerId = homeStr < awayStr ? match.home_team_id : match.away_team_id;
              
              homeScore = winnerId === match.home_team_id ? 1 : 0;
              awayScore = winnerId === match.away_team_id ? 1 : 0;
