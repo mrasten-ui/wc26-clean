@@ -8,8 +8,7 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   activeKnockoutRound: string;
   setActiveKnockoutRound: (round: string) => void;
-  currentMainTab: "MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS";
-  // We keep this to control the sub-nav logic
+  currentMainTab: "GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES"; // ✅ Updated Order
   saveStatus: 'idle' | 'saving' | 'saved'; 
   revealCount: number; 
   isGenerating: boolean;
@@ -65,13 +64,16 @@ export default function Header({
             </div>
 
             {/* CENTER: Logo & Title (Absolute Positioned for True Center) */}
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                 <h1 className="text-white font-black text-lg tracking-tighter leading-none uppercase drop-shadow-md">
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center">
+                 <img 
+                    src="/icon-192.png" 
+                    alt="Logo" 
+                    className="w-8 h-8 object-contain mb-1 drop-shadow-md" 
+                    onError={(e) => e.currentTarget.style.display = 'none'}
+                 />
+                 <h1 className="text-white font-black text-[10px] tracking-widest leading-none uppercase drop-shadow-md">
                     {t.appName}
                  </h1>
-                 <p className="text-[9px] text-blue-300 font-bold uppercase tracking-[0.2em] opacity-80">
-                    Official Predictor
-                 </p>
             </div>
 
             {/* RIGHT: User Profile */}

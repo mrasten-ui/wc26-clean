@@ -41,8 +41,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
   
-  // ✅ FIXED: Added "MATCHES" back to the default type
-  const [currentMainTab, setCurrentMainTab] = useState<"MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS">("GROUPS");
+  // ✅ TAB ORDER: Groups -> Knockout -> Matches -> Results
+  const [currentMainTab, setCurrentMainTab] = useState<"GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES">("GROUPS");
   
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
@@ -156,9 +156,9 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
-      {/* ✅ RESTORED: Main Tabs Sticky Bar BELOW Header */}
+      {/* ✅ CORRECTED ORDER: Groups -> Knockout -> Matches -> Results */}
       <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
-         {["MATCHES", "GROUPS", "KNOCKOUT", "RESULTS"].map(tab => (
+         {["GROUPS", "KNOCKOUT", "MATCHES", "RESULTS"].map(tab => (
              <button 
                 key={tab}
                 onClick={() => {
@@ -174,14 +174,24 @@ export default function Home() {
 
       <div className="pt-4 px-2 md:px-0 max-w-5xl mx-auto">
         
-        {/* ✅ RESTORED: Match Center Component */}
-        {currentMainTab === "MATCHES" && (
-            <MatchCenter 
-                matches={matches} 
-                predictions={predictions} 
+        {currentMainTab === "GROUPS" && (
+             <GroupStage 
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                matchesByGroup={matchesByGroup} 
+                predictions={predictions}
+                handlePredict={handlePredict} 
+                leaderboard={leaderboard} 
+                allPredictions={allPredictions} 
+                user={user} 
+                revealCount={revealCount} 
+                handleRevealSelection={handleReveal} 
+                revealedMatches={revealedMatches} 
                 t={t} 
-                onCompare={() => {}} 
-            />
+                lang={lang} 
+                getTeamName={(id, def) => getTeamName(id, def, lang, showNicknames)}
+                standings={groupStandings[activeTab] || []}
+             />
         )}
 
         {currentMainTab === "KNOCKOUT" && (
@@ -201,24 +211,13 @@ export default function Home() {
             />
         )}
 
-        {currentMainTab === "GROUPS" && (
-             <GroupStage 
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                matchesByGroup={matchesByGroup} 
-                predictions={predictions}
-                handlePredict={handlePredict} 
-                leaderboard={leaderboard} 
-                allPredictions={allPredictions} 
-                user={user} 
-                revealCount={revealCount} 
-                handleRevealSelection={handleReveal} 
-                revealedMatches={revealedMatches} 
+        {currentMainTab === "MATCHES" && (
+            <MatchCenter 
+                matches={matches} 
+                predictions={predictions} 
                 t={t} 
-                lang={lang} 
-                getTeamName={(id, def) => getTeamName(id, def, lang, showNicknames)}
-                standings={groupStandings[activeTab] || []}
-             />
+                onCompare={() => {}} 
+            />
         )}
         
         {currentMainTab === "RESULTS" && (
