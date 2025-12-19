@@ -41,7 +41,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
   
-  // ✅ STATE: Main Tab Switcher
+  // ✅ FIXED: Added "MATCHES" back to the default type
   const [currentMainTab, setCurrentMainTab] = useState<"MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS">("GROUPS");
   
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
@@ -136,7 +136,6 @@ export default function Home() {
          activeKnockoutRound={activeKnockoutRound}
          setActiveKnockoutRound={setActiveKnockoutRound}
          currentMainTab={currentMainTab}
-         setCurrentMainTab={setCurrentMainTab} // ✅ PASSING THE SETTER
          saveStatus={saveStatus}
          revealCount={revealCount}
          isGenerating={false}
@@ -157,9 +156,34 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
-      {/* ❌ REMOVED: The duplicate "SUB-HEADER TABS" div is gone. */}
+      {/* ✅ RESTORED: Main Tabs Sticky Bar BELOW Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
+         {["MATCHES", "GROUPS", "KNOCKOUT", "RESULTS"].map(tab => (
+             <button 
+                key={tab}
+                onClick={() => {
+                    setCurrentMainTab(tab as any);
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                }}
+                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-colors border-b-4 ${currentMainTab === tab ? "text-blue-900 border-blue-600 bg-blue-50" : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50"}`}
+             >
+                 {(t as any)[tab.toLowerCase()] || tab}
+             </button>
+         ))}
+      </div>
 
       <div className="pt-4 px-2 md:px-0 max-w-5xl mx-auto">
+        
+        {/* ✅ RESTORED: Match Center Component */}
+        {currentMainTab === "MATCHES" && (
+            <MatchCenter 
+                matches={matches} 
+                predictions={predictions} 
+                t={t} 
+                onCompare={() => {}} 
+            />
+        )}
+
         {currentMainTab === "KNOCKOUT" && (
             <Bracket 
                 activeKnockoutRound={activeKnockoutRound}

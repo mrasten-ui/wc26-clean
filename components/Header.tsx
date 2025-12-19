@@ -1,7 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
 import { COLORS } from "../lib/constants";
-import ProgressRing from "./ProgressRing";
 import SubNavigation from "./SubNavigation";
 
 interface HeaderProps {
@@ -11,8 +9,7 @@ interface HeaderProps {
   activeKnockoutRound: string;
   setActiveKnockoutRound: (round: string) => void;
   currentMainTab: "MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS";
-  // ✅ ADDED: Setter for the main tab
-  setCurrentMainTab: (tab: "MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS") => void;
+  // We keep this to control the sub-nav logic
   saveStatus: 'idle' | 'saving' | 'saved'; 
   revealCount: number; 
   isGenerating: boolean;
@@ -30,8 +27,6 @@ interface HeaderProps {
   getKnockoutStatus: (stage: string) => 'empty' | 'partial' | 'complete';
   onOpenRules: () => void;
   predictions?: any; 
-  totalMatchesCount?: number; 
-  matchesCompletedCount?: number;
   showNicknames: boolean; 
   setShowNicknames: (show: boolean) => void;
 }
@@ -43,78 +38,57 @@ export default function Header({
   activeKnockoutRound,
   setActiveKnockoutRound,
   currentMainTab,
-  setCurrentMainTab, // <--- Receive this
   saveStatus,
-  revealCount,
   isGenerating,
   handleGroupAutoFill,
   handleKnockoutAutoFill,
   handleClearPredictions,
   hasPredictions,
-  isTournamentComplete,
   handleLogout,
-  lang,
-  setLang,
   t,
-  getMainTabStatus,
   getGroupStatus,
   getKnockoutStatus,
   onOpenRules,
-  predictions,
-  showNicknames,
-  setShowNicknames
 }: HeaderProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // Helper for Main Tabs
-  const MainTabButton = ({ id, label }: { id: typeof currentMainTab, label: string }) => {
-    const isActive = currentMainTab === id;
-    return (
-      <button
-        onClick={() => {
-            setCurrentMainTab(id);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        className={`
-           relative px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all
-           ${isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'}
-        `}
-      >
-        {label}
-        {isActive && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-        )}
-      </button>
-    );
-  };
 
   return (
     <header className="sticky top-0 z-40 shadow-xl transition-all duration-300" style={{ backgroundColor: COLORS.navy }}>
         
-        {/* TOP BAR: Logo & User */}
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            {/* LEFT: Logo & Rules */}
-            <div className="flex items-center gap-4">
-                <div onClick={onOpenRules} className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center cursor-pointer transition-colors border border-white/10">
-                    <span className="text-lg">🏆</span>
-                </div>
-                <div className="hidden md:block">
-                   <h1 className="text-white font-black text-sm tracking-tighter leading-none">{t.appName}</h1>
-                   <p className="text-[9px] text-blue-300 font-bold uppercase tracking-widest">Official Predictor</p>
-                </div>
+        {/* TOP BAR: Logo (Centered) & User (Right) */}
+        <div className="relative max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+            
+            {/* LEFT: Rules / Menu */}
+            <div className="flex items-center gap-2 z-10">
+                <button onClick={onOpenRules} className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors border border-white/10">
+                    <span className="text-xl">🏆</span>
+                </button>
             </div>
 
-            {/* RIGHT: User Profile & Mobile Menu */}
-            <div className="flex items-center gap-3">
-                 {/* Save Status Indicator */}
-                 {saveStatus === 'saving' && <div className="text-[10px] font-bold text-blue-300 animate-pulse uppercase tracking-wider hidden md:block">{t.processing}</div>}
+            {/* CENTER: Logo & Title (Absolute Positioned for True Center) */}
+            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                 <h1 className="text-white font-black text-lg tracking-tighter leading-none uppercase drop-shadow-md">
+                    {t.appName}
+                 </h1>
+                 <p className="text-[9px] text-blue-300 font-bold uppercase tracking-[0.2em] opacity-80">
+                    Official Predictor
+                 </p>
+            </div>
+
+            {/* RIGHT: User Profile */}
+            <div className="flex items-center gap-3 z-10">
+                 {saveStatus === 'saving' && (
+                     <div className="hidden md:block text-[10px] font-bold text-blue-300 animate-pulse uppercase tracking-wider">
+                        {t.processing}
+                     </div>
+                 )}
                  
-                 {/* User Info */}
-                 <div className="flex items-center gap-2 bg-black/20 pl-1 pr-3 py-1 rounded-full border border-white/5">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white shadow-inner">
+                 <div className="flex items-center gap-2 bg-black/20 pl-1 pr-3 py-1 rounded-full border border-white/5 backdrop-blur-sm">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white shadow-inner ring-1 ring-white/10">
                         {user?.email?.[0].toUpperCase()}
                     </div>
-                    <span className="text-xs font-bold text-slate-200 max-w-[80px] truncate">{user?.full_name || 'Fan'}</span>
+                    <span className="hidden md:block text-xs font-bold text-slate-200 max-w-[80px] truncate">
+                        {user?.full_name || 'Fan'}
+                    </span>
                  </div>
                  
                  <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-white transition-colors">
@@ -123,17 +97,7 @@ export default function Header({
             </div>
         </div>
 
-        {/* MAIN NAVIGATION (Integrated Row) */}
-        <div className="border-t border-white/10 bg-black/10 backdrop-blur-sm">
-             <div className="max-w-5xl mx-auto flex justify-center md:justify-start">
-                  <MainTabButton id="GROUPS" label={t.groupStage || "Groups"} />
-                  <MainTabButton id="KNOCKOUT" label={t.knockout || "Knockout"} />
-                  <MainTabButton id="RESULTS" label={t.results || "Results"} />
-             </div>
-        </div>
-
-        {/* SUB NAVIGATION (The specific tabs for Groups/Knockout) */}
-        {/* We pass props down. Note: SubNav handles its own rendering logic based on currentMainTab */}
+        {/* SUB NAVIGATION (Lives inside header for seamless look) */}
         <SubNavigation 
             currentMainTab={currentMainTab}
             activeTab={activeTab}
@@ -143,7 +107,7 @@ export default function Header({
             showTools={true}
             hasPredictions={hasPredictions}
             isGenerating={isGenerating}
-            handleSmartAutoFill={handleGroupAutoFill} // Both main tabs utilize this prop name in SubNav
+            handleSmartAutoFill={handleGroupAutoFill}
             handleSmartClear={handleClearPredictions}
             getSubTabStatusDot={getGroupStatus}
             getKnockoutDot={getKnockoutStatus}
