@@ -18,6 +18,7 @@ import AutoFillModal from "../components/AutoFillModal";
 import RulesModal from "../components/RulesModal";
 
 const WelcomeListener = ({ onOpen }: { onOpen: () => void }) => { return null; };
+
 const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
     <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
 );
@@ -41,7 +42,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
   
-  // ✅ TAB ORDER: Groups -> Knockout -> Matches -> Results
+  // ✅ FIXED ORDER: Groups -> Knockout -> Matches -> Results (Table)
   const [currentMainTab, setCurrentMainTab] = useState<"GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES">("GROUPS");
   
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
@@ -64,6 +65,8 @@ export default function Home() {
       localStorage.setItem("wc26_lang", l);
   };
 
+  // --- CALCULATIONS ---
+
   const matchesByGroup = useMemo(() => {
     const groups: Record<string, Match[]> = {};
     GROUPS.forEach(g => {
@@ -82,20 +85,23 @@ export default function Home() {
   }, [matches, predictions]);
 
   const thirdPlaceTable = useMemo(() => calculateThirdPlaceStandings(matches, predictions), [matches, predictions]);
+  
+  // ✅ BRACKET MAP (Crucial for Knockout Logic)
   const bracketMap = useMemo(() => calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions), [groupStandings, thirdPlaceTable, matches, predictions]);
   
   const teamsMap = useMemo(() => {
       return allTeams.reduce((acc, t) => { acc[t.id] = t; return acc; }, {} as Record<string, TeamData>);
   }, [allTeams]);
 
-  // AUTO FILL HANDLERS
+  // --- HANDLERS ---
+
   const handleSmartAutoFill = () => {
       setIsAutoFillModalOpen(true);
   };
 
   const handleSmartClear = () => {
       if (confirm("Clear all predictions for this section?")) {
-         // Logic to clear would go here
+         // Logic to clear would go here (optional implementation)
       }
   };
   
@@ -106,7 +112,8 @@ export default function Home() {
 
   if (loading) return <LoadingComponent t={t} COLORS={COLORS} />;
 
-  // DERIVE STATUS DOTS
+  // --- STATUS DOTS ---
+
   const getSubTabStatusDot = (groupId: string) => {
       const ms = matchesByGroup[groupId] || [];
       if (ms.length === 0) return 'bg-slate-600';
@@ -156,7 +163,7 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
-      {/* ✅ CORRECTED ORDER: Groups -> Knockout -> Matches -> Results */}
+      {/* STICKY TAB BAR: GROUPS -> KNOCKOUT -> MATCHES -> RESULTS */}
       <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
          {["GROUPS", "KNOCKOUT", "MATCHES", "RESULTS"].map(tab => (
              <button 
@@ -232,7 +239,8 @@ export default function Home() {
       <AutoFillModal 
           isOpen={isAutoFillModalOpen} 
           onClose={() => setIsAutoFillModalOpen(false)} 
-          onConfirm={(boostedTeams) => handleAutoFill(allTeams, activeTab, boostedTeams)} 
+          // ✅ PASS BRACKET MAP: This fixes the "Helping Hand" in Knockout
+          onConfirm={(boostedTeams) => handleAutoFill(allTeams, activeTab, boostedTeams, bracketMap)} 
           allTeams={allTeams} 
           lang={lang} 
           t={t} 

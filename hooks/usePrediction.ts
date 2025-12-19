@@ -1,8 +1,6 @@
-// hooks/usePrediction.ts
-
 import { useState, useCallback, useRef } from "react";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions, TeamData } from "../lib/types";
+import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions, TeamData, BracketMap } from "../lib/types";
 
 export function usePrediction(
   supabase: SupabaseClient,
@@ -33,10 +31,9 @@ export function usePrediction(
 
     setSaveStatus('saving');
     
-    // Clear debounce
+    // Debounce save
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-    // Save to DB
     timeoutRef.current = setTimeout(async () => {
       const payload = { match_id: matchId, user_id: user.id, [field]: value };
       
@@ -62,8 +59,13 @@ export function usePrediction(
   };
 
   // --- 2. HELPING HAND LOGIC (FIXED) ---
-  // Now accepts boostedTeams (string[]) as the 3rd argument
-  const handleAutoFill = (allTeams: TeamData[], activeTab: string, boostedTeams: string[] = []) => {
+  // ✅ NOW ACCEPTS bracketMap to resolve dynamic knockout teams
+  const handleAutoFill = (
+      allTeams: TeamData[], 
+      activeTab: string, 
+      boostedTeams: string[] = [],
+      bracketMap: BracketMap = {} 
+  ) => {
       if (!user) return;
 
       const newPredictions = { ...predictions };
@@ -76,7 +78,7 @@ export function usePrediction(
       }, {} as Record<string, TeamData>);
 
       const getStrength = (teamId: string | null) => {
-          if (!teamId || !teamsMap[teamId]) return 100; 
+          if (!teamId || !teamsMap[teamId]) return 100; // Default weak if unknown
           return teamsMap[teamId].fifa_ranking || 50; 
       };
 
@@ -88,20 +90,29 @@ export function usePrediction(
       }
 
       targetMatches.forEach(match => {
-          // Only predict if empty
-          if (newPredictions[match.id]) return;
+          // Skip if already predicted
+          if (newPredictions[match.id]?.winner_id || (newPredictions[match.id]?.home_score !== undefined)) return;
+
+          let homeId = match.home_team_id;
+          let awayId = match.away_team_id;
+
+          // ✅ CRITICAL FIX: Resolve ID from BracketMap if missing in DB
+          if (!homeId && bracketMap[match.id]?.home) homeId = bracketMap[match.id].home;
+          if (!awayId && bracketMap[match.id]?.away) awayId = bracketMap[match.id].away;
+
+          // If we still don't know the teams (bracket incomplete), skip prediction
+          if (!homeId || !awayId) return;
 
           let homeScore = 0;
           let awayScore = 0;
           let winnerId = null;
 
-          // Check for favorites boost
-          const isHomeBoosted = boostedTeams.includes(match.home_team_id || '');
-          const isAwayBoosted = boostedTeams.includes(match.away_team_id || '');
+          const isHomeBoosted = boostedTeams.includes(homeId || '');
+          const isAwayBoosted = boostedTeams.includes(awayId || '');
 
           if (match.stage === 'GROUP') {
-             const homeStrength = getStrength(match.home_team_id);
-             const awayStrength = getStrength(match.away_team_id);
+             const homeStrength = getStrength(homeId);
+             const awayStrength = getStrength(awayId);
              const randomFactor = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
              
              // Base Logic: Lower Rank (Better) gets higher score
@@ -113,28 +124,25 @@ export function usePrediction(
                  awayScore = 2 + Math.max(0, randomFactor);
              }
 
-             // APPLY BOOST
              if (isHomeBoosted) homeScore += 1;
              if (isAwayBoosted) awayScore += 1;
              
              newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore };
              updates.push({ match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore });
 
-          } else if (match.home_team_id && match.away_team_id) {
-             // Knockout Simple Logic
-             const homeStr = getStrength(match.home_team_id);
-             const awayStr = getStrength(match.away_team_id);
+          } else {
+             // KNOCKOUT LOGIC
+             const homeStr = getStrength(homeId);
+             const awayStr = getStrength(awayId);
              
-             // If boosted, they win. If both boosted, rank decides.
-             if (isHomeBoosted && !isAwayBoosted) winnerId = match.home_team_id;
-             else if (isAwayBoosted && !isHomeBoosted) winnerId = match.away_team_id;
-             else winnerId = homeStr < awayStr ? match.home_team_id : match.away_team_id;
+             // Winner Logic
+             if (isHomeBoosted && !isAwayBoosted) winnerId = homeId;
+             else if (isAwayBoosted && !isHomeBoosted) winnerId = awayId;
+             else winnerId = homeStr < awayStr ? homeId : awayId;
              
-             homeScore = winnerId === match.home_team_id ? 1 : 0;
-             awayScore = winnerId === match.away_team_id ? 1 : 0;
-
-             newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore, winner_id: winnerId };
-             updates.push({ match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore, winner_id: winnerId });
+             // In knockout, we just store the winner_id (scores are optional/cosmetic for now)
+             newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, winner_id: winnerId };
+             updates.push({ match_id: match.id, user_id: user.id, winner_id: winnerId });
           }
       });
 
