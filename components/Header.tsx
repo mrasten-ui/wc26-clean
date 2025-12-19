@@ -8,7 +8,7 @@ interface HeaderProps {
   setActiveTab: (tab: string) => void;
   activeKnockoutRound: string;
   setActiveKnockoutRound: (round: string) => void;
-  currentMainTab: "GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES"; // ✅ Updated Order
+  currentMainTab: "GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES";
   saveStatus: 'idle' | 'saving' | 'saved'; 
   revealCount: number; 
   isGenerating: boolean;
@@ -53,28 +53,32 @@ export default function Header({
   return (
     <header className="sticky top-0 z-40 shadow-xl transition-all duration-300" style={{ backgroundColor: COLORS.navy }}>
         
-        {/* TOP BAR: Logo (Centered) & User (Right) */}
+        {/* TOP BAR */}
         <div className="relative max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
             
-            {/* LEFT: Rules / Menu */}
-            <div className="flex items-center gap-2 z-10">
-                <button onClick={onOpenRules} className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors border border-white/10">
-                    <span className="text-xl">🏆</span>
-                </button>
-            </div>
+            {/* LEFT: Empty Spacer (Maintains balance for the centered logo) */}
+            <div className="w-10 z-10"></div>
 
-            {/* CENTER: Logo & Title (Absolute Positioned for True Center) */}
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center">
+            {/* CENTER: Logo + Text (Side-by-Side) */}
+            <button 
+                onClick={onOpenRules}
+                className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 group"
+            >
                  <img 
                     src="/icon-192.png" 
                     alt="Logo" 
-                    className="w-8 h-8 object-contain mb-1 drop-shadow-md" 
+                    className="w-10 h-10 object-contain drop-shadow-md group-hover:scale-110 transition-transform" 
                     onError={(e) => e.currentTarget.style.display = 'none'}
                  />
-                 <h1 className="text-white font-black text-[10px] tracking-widest leading-none uppercase drop-shadow-md">
-                    {t.appName}
-                 </h1>
-            </div>
+                 <div className="text-left hidden xs:block">
+                     <h1 className="text-white font-black text-sm tracking-widest leading-none uppercase drop-shadow-md whitespace-nowrap">
+                        {t.appName}
+                     </h1>
+                     <p className="text-[8px] text-blue-300 font-bold uppercase tracking-[0.2em] opacity-80 group-hover:text-yellow-400 transition-colors">
+                        Official Predictor
+                     </p>
+                 </div>
+            </button>
 
             {/* RIGHT: User Profile */}
             <div className="flex items-center gap-3 z-10">
@@ -99,7 +103,7 @@ export default function Header({
             </div>
         </div>
 
-        {/* SUB NAVIGATION (Lives inside header for seamless look) */}
+        {/* SUB NAVIGATION */}
         <SubNavigation 
             currentMainTab={currentMainTab}
             activeTab={activeTab}
