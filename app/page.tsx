@@ -40,7 +40,10 @@ export default function Home() {
   const [lang, setLang] = useState('en');
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
+  
+  // ✅ STATE: Main Tab Switcher
   const [currentMainTab, setCurrentMainTab] = useState<"MATCHES" | "GROUPS" | "KNOCKOUT" | "RULES" | "RESULTS">("GROUPS");
+  
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [showNicknames, setShowNicknames] = useState(false);
@@ -133,6 +136,7 @@ export default function Home() {
          activeKnockoutRound={activeKnockoutRound}
          setActiveKnockoutRound={setActiveKnockoutRound}
          currentMainTab={currentMainTab}
+         setCurrentMainTab={setCurrentMainTab} // ✅ PASSING THE SETTER
          saveStatus={saveStatus}
          revealCount={revealCount}
          isGenerating={false}
@@ -145,7 +149,7 @@ export default function Home() {
          lang={lang as any}
          setLang={changeLang}
          t={t}
-         getMainTabStatus={() => 'bg-green-500'} // Placeholder
+         getMainTabStatus={() => 'bg-green-500'} 
          getGroupStatus={getSubTabStatusDot}
          getKnockoutStatus={(s: string) => getKnockoutDot(s) === 'bg-green-500' ? 'complete' : 'empty'}
          onOpenRules={() => setIsRulesModalOpen(true)}
@@ -153,22 +157,7 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
-      {/* SUB-HEADER TABS */}
-      <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-2">
-         {["GROUPS", "KNOCKOUT", "RESULTS"].map(tab => (
-             <button 
-                key={tab}
-                onClick={() => {
-                    setCurrentMainTab(tab as any);
-                    window.scrollTo({top: 0});
-                }}
-                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${currentMainTab === tab ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-400 hover:text-slate-600"}`}
-             >
-                 {/* ✅ FIXED: Type assertion added here */}
-                 {(t as any)[tab.toLowerCase()] || tab}
-             </button>
-         ))}
-      </div>
+      {/* ❌ REMOVED: The duplicate "SUB-HEADER TABS" div is gone. */}
 
       <div className="pt-4 px-2 md:px-0 max-w-5xl mx-auto">
         {currentMainTab === "KNOCKOUT" && (
