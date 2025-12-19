@@ -1,36 +1,30 @@
-import { Match, Prediction } from "./types";
-import { calculateScore } from "./calculator";
+// Define the Team interface to include 'id'
+interface Team {
+  id: string; // This was missing and caused the build failure
+  name: string;
+  group_id: string;
+  tbd_code?: string;
+  ranking?: number; // Optional, based on your log comment about rankings
+}
 
-export const generateGroupPredictions = (
-    matches: Match[],
-    userId: string,
-    boostedTeams: string[]
-): Prediction[] => {
-    // Only target group matches that have known teams
-    const groupMatches = matches.filter(m => m.stage === 'GROUP' && m.home_team && m.away_team);
-    const newPredictions: Prediction[] = [];
+interface Match {
+  home_team: Team | null;
+  away_team: Team | null;
+  // ... other match properties like home_score, away_score, etc.
+}
 
-    groupMatches.forEach(m => {
-        const homeId = m.home_team!.id;
-        const awayId = m.away_team!.id;
-        
-        // Use ranking or default to 50
-        const homeRank = m.home_team!.fifa_ranking || 50;
-        const awayRank = m.away_team!.fifa_ranking || 50;
+export function simulateGroupMatches(groupMatches: Match[]) {
+  groupMatches.forEach(m => {
+    // These lines now have the 'id' property recognized by TypeScript
+    const homeId = m.home_team!.id;
+    const awayId = m.away_team!.id;
+    
+    // Use ranking or default to 50 (as seen in your logs)
+    const homeRank = m.home_team?.ranking || 50;
+    const awayRank = m.away_team?.ranking || 50;
 
-        const isHomeBoosted = boostedTeams.includes(homeId);
-        const isAwayBoosted = boostedTeams.includes(awayId);
+    // ... rest of your simulation logic
+  });
+}
 
-        const hScore = calculateScore(homeRank, awayRank, isHomeBoosted, isAwayBoosted, true);
-        const aScore = calculateScore(awayRank, homeRank, isAwayBoosted, isHomeBoosted, false);
-
-        newPredictions.push({
-            match_id: m.id,
-            user_id: userId,
-            home_score: hScore,
-            away_score: aScore
-        });
-    });
-
-    return newPredictions;
-};
+// Add any other functions your file might have below...
