@@ -42,7 +42,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
   
-  // ✅ FIXED ORDER: Groups -> Knockout -> Matches -> Results (Table)
   const [currentMainTab, setCurrentMainTab] = useState<"GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES">("GROUPS");
   
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
@@ -51,7 +50,8 @@ export default function Home() {
   
   const t = TRANSLATIONS[lang as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
 
-  const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill } = usePrediction(
+  // ✅ Extract handleClear from hook
+  const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill, handleClear } = usePrediction(
       supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
 
@@ -85,8 +85,6 @@ export default function Home() {
   }, [matches, predictions]);
 
   const thirdPlaceTable = useMemo(() => calculateThirdPlaceStandings(matches, predictions), [matches, predictions]);
-  
-  // ✅ BRACKET MAP (Crucial for Knockout Logic)
   const bracketMap = useMemo(() => calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions), [groupStandings, thirdPlaceTable, matches, predictions]);
   
   const teamsMap = useMemo(() => {
@@ -100,8 +98,10 @@ export default function Home() {
   };
 
   const handleSmartClear = () => {
-      if (confirm("Clear all predictions for this section?")) {
-         // Logic to clear would go here (optional implementation)
+      const scope = currentMainTab === 'KNOCKOUT' ? 'Knockout' : 'All Groups';
+      if (confirm(`Are you sure you want to clear ${scope} predictions? This cannot be undone.`)) {
+         // ✅ FIXED: Clear based on current section
+         handleClear(currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS');
       }
   };
   
@@ -163,7 +163,6 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
-      {/* STICKY TAB BAR: GROUPS -> KNOCKOUT -> MATCHES -> RESULTS */}
       <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
          {["GROUPS", "KNOCKOUT", "MATCHES", "RESULTS"].map(tab => (
              <button 
@@ -239,8 +238,13 @@ export default function Home() {
       <AutoFillModal 
           isOpen={isAutoFillModalOpen} 
           onClose={() => setIsAutoFillModalOpen(false)} 
-          // ✅ PASS BRACKET MAP: This fixes the "Helping Hand" in Knockout
-          onConfirm={(boostedTeams) => handleAutoFill(allTeams, activeTab, boostedTeams, bracketMap)} 
+          // ✅ FIXED: Pass 'ALL_GROUPS' so it fills everything at once
+          onConfirm={(boostedTeams) => handleAutoFill(
+              allTeams, 
+              currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS', 
+              boostedTeams, 
+              bracketMap
+          )} 
           allTeams={allTeams} 
           lang={lang} 
           t={t} 

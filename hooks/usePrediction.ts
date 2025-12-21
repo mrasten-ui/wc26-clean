@@ -58,11 +58,43 @@ export function usePrediction(
     }
   };
 
-  // --- 2. HELPING HAND LOGIC (FIXED) ---
-  // ✅ NOW ACCEPTS bracketMap to resolve dynamic knockout teams
+  // --- 2. CLEAR PREDICTIONS LOGIC ---
+  const handleClear = async (targetScope: 'ALL_GROUPS' | 'KNOCKOUT') => {
+      if (!user) return;
+
+      let targetMatches: Match[] = [];
+      
+      if (targetScope === 'ALL_GROUPS') {
+          targetMatches = matches.filter(m => m.stage === 'GROUP');
+      } else if (targetScope === 'KNOCKOUT') {
+          targetMatches = matches.filter(m => m.stage !== 'GROUP');
+      }
+
+      if (targetMatches.length === 0) return;
+
+      const matchIds = targetMatches.map(m => m.id);
+
+      // Optimistic Delete
+      setPredictions(prev => {
+          const next = { ...prev };
+          matchIds.forEach(id => delete next[id]);
+          return next;
+      });
+
+      // DB Delete
+      const { error } = await supabase
+          .from('predictions')
+          .delete()
+          .eq('user_id', user.id)
+          .in('match_id', matchIds);
+
+      if (error) console.error("Clear failed:", error);
+  };
+
+  // --- 3. AUTO-FILL LOGIC ---
   const handleAutoFill = (
       allTeams: TeamData[], 
-      activeTab: string, 
+      targetScope: 'ALL_GROUPS' | 'KNOCKOUT', 
       boostedTeams: string[] = [],
       bracketMap: BracketMap = {} 
   ) => {
@@ -71,36 +103,36 @@ export function usePrediction(
       const newPredictions = { ...predictions };
       const updates: any[] = [];
       
-      // Map teams by ID for quick rank lookup
       const teamsMap = allTeams.reduce((acc, t) => { 
         acc[t.id] = t; 
         return acc; 
       }, {} as Record<string, TeamData>);
 
       const getStrength = (teamId: string | null) => {
-          if (!teamId || !teamsMap[teamId]) return 100; // Default weak if unknown
+          if (!teamId || !teamsMap[teamId]) return 100; 
           return teamsMap[teamId].fifa_ranking || 50; 
       };
 
-      let targetMatches = matches;
-      if (activeTab === 'KNOCKOUT') {
+      let targetMatches: Match[] = [];
+      
+      if (targetScope === 'KNOCKOUT') {
           targetMatches = matches.filter(m => m.stage !== 'GROUP');
       } else {
-          targetMatches = matches.filter(m => m.stage === 'GROUP' && (activeTab === 'ALL' || m.home_team?.group_id === activeTab));
+          // 'ALL_GROUPS'
+          targetMatches = matches.filter(m => m.stage === 'GROUP');
       }
 
       targetMatches.forEach(match => {
-          // Skip if already predicted
-          if (newPredictions[match.id]?.winner_id || (newPredictions[match.id]?.home_score !== undefined)) return;
+          // ❌ REMOVED the check that prevents overwriting. 
+          // Now it will calculate a fresh score every time you click.
 
           let homeId = match.home_team_id;
           let awayId = match.away_team_id;
 
-          // ✅ CRITICAL FIX: Resolve ID from BracketMap if missing in DB
+          // Resolve Knockout Placeholders
           if (!homeId && bracketMap[match.id]?.home) homeId = bracketMap[match.id].home;
           if (!awayId && bracketMap[match.id]?.away) awayId = bracketMap[match.id].away;
 
-          // If we still don't know the teams (bracket incomplete), skip prediction
           if (!homeId || !awayId) return;
 
           let homeScore = 0;
@@ -113,9 +145,8 @@ export function usePrediction(
           if (match.stage === 'GROUP') {
              const homeStrength = getStrength(homeId);
              const awayStrength = getStrength(awayId);
-             const randomFactor = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+             const randomFactor = Math.floor(Math.random() * 3) - 1; 
              
-             // Base Logic: Lower Rank (Better) gets higher score
              if (homeStrength < awayStrength) { 
                  homeScore = 2 + Math.max(0, randomFactor);
                  awayScore = 0 + Math.max(0, randomFactor + 1);
@@ -131,16 +162,14 @@ export function usePrediction(
              updates.push({ match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore });
 
           } else {
-             // KNOCKOUT LOGIC
+             // Knockout
              const homeStr = getStrength(homeId);
              const awayStr = getStrength(awayId);
              
-             // Winner Logic
              if (isHomeBoosted && !isAwayBoosted) winnerId = homeId;
              else if (isAwayBoosted && !isHomeBoosted) winnerId = awayId;
              else winnerId = homeStr < awayStr ? homeId : awayId;
              
-             // In knockout, we just store the winner_id (scores are optional/cosmetic for now)
              newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, winner_id: winnerId };
              updates.push({ match_id: match.id, user_id: user.id, winner_id: winnerId });
           }
@@ -161,6 +190,7 @@ export function usePrediction(
     handleReveal,
     revealedMatches,
     saveStatus,
-    handleAutoFill
+    handleAutoFill,
+    handleClear // ✅ Exported
   };
 }
