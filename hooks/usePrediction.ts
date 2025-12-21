@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions, TeamData, BracketMap } from "../lib/types";
-// ✅ IMPORT MATCHING THE EXPORT
+// ✅ IMPORTING FROM THE FILE ABOVE
 import { BRACKET_STRUCTURE } from "../lib/bracket";
 
 export function usePrediction(
@@ -20,10 +20,12 @@ export function usePrediction(
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // --- 1. PREDICTION SAVING LOGIC ---
   const handlePredict = useCallback(async (matchId: number, field: string, value: any) => {
     if (!user) return;
     if (!matchId) return;
 
+    // Optimistic Update
     setPredictions((prev) => {
       const existing = prev[matchId] || { match_id: matchId, user_id: user.id };
       return { ...prev, [matchId]: { ...existing, [field]: value } };
@@ -31,13 +33,23 @@ export function usePrediction(
 
     setSaveStatus('saving');
     
+    // Debounce save
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
     timeoutRef.current = setTimeout(async () => {
       const payload = { match_id: matchId, user_id: user.id, [field]: value };
-      const { error } = await supabase.from('predictions').upsert(payload, { onConflict: 'user_id, match_id' });
-      if (error) { console.error("Save failed:", error); setSaveStatus('idle'); } 
-      else { setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000); }
+      
+      const { error } = await supabase
+        .from('predictions')
+        .upsert(payload, { onConflict: 'user_id, match_id' });
+
+      if (error) {
+          console.error("Save failed:", error.message);
+          setSaveStatus('idle');
+      } else {
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus('idle'), 2000);
+      }
     }, 500);
   }, [user, supabase, setPredictions]);
 
@@ -48,24 +60,40 @@ export function usePrediction(
     }
   };
 
+  // --- 2. CLEAR PREDICTIONS LOGIC ---
   const handleClear = async (targetScope: 'ALL_GROUPS' | 'KNOCKOUT') => {
       if (!user) return;
+
       let targetMatches: Match[] = [];
-      if (targetScope === 'ALL_GROUPS') targetMatches = matches.filter(m => m.stage === 'GROUP');
-      else if (targetScope === 'KNOCKOUT') targetMatches = matches.filter(m => m.stage !== 'GROUP');
       
+      if (targetScope === 'ALL_GROUPS') {
+          targetMatches = matches.filter(m => m.stage === 'GROUP');
+      } else if (targetScope === 'KNOCKOUT') {
+          targetMatches = matches.filter(m => m.stage !== 'GROUP');
+      }
+
       if (targetMatches.length === 0) return;
+
       const matchIds = targetMatches.map(m => m.id);
 
+      // Optimistic Delete
       setPredictions(prev => {
           const next = { ...prev };
           matchIds.forEach(id => delete next[id]);
           return next;
       });
 
-      await supabase.from('predictions').delete().eq('user_id', user.id).in('match_id', matchIds);
+      // DB Delete
+      const { error } = await supabase
+          .from('predictions')
+          .delete()
+          .eq('user_id', user.id)
+          .in('match_id', matchIds);
+
+      if (error) console.error("Clear failed:", error);
   };
 
+  // --- 3. AUTO-FILL LOGIC ---
   const handleAutoFill = (
       allTeams: TeamData[], 
       targetScope: 'ALL_GROUPS' | 'KNOCKOUT', 
@@ -76,7 +104,13 @@ export function usePrediction(
 
       const newPredictions = { ...predictions };
       const updates: any[] = [];
-      const teamsMap = allTeams.reduce((acc, t) => { acc[t.id] = t; return acc; }, {} as Record<string, TeamData>);
+      
+      const teamsMap = allTeams.reduce((acc, t) => { 
+        acc[t.id] = t; 
+        return acc; 
+      }, {} as Record<string, TeamData>);
+
+      // Deep copy bracket map so we can simulate future rounds
       const runningBracketMap = JSON.parse(JSON.stringify(initialBracketMap));
 
       const getStrength = (teamId: string | null) => {
@@ -85,15 +119,22 @@ export function usePrediction(
       };
 
       let targetMatches: Match[] = [];
-      if (targetScope === 'KNOCKOUT') targetMatches = matches.filter(m => m.stage !== 'GROUP');
-      else targetMatches = matches.filter(m => m.stage === 'GROUP');
+      
+      if (targetScope === 'KNOCKOUT') {
+          targetMatches = matches.filter(m => m.stage !== 'GROUP');
+      } else {
+          // 'ALL_GROUPS'
+          targetMatches = matches.filter(m => m.stage === 'GROUP');
+      }
 
+      // Sort matches to ensure R32 -> R16 -> QF order
       targetMatches.sort((a, b) => a.id - b.id);
 
       targetMatches.forEach(match => {
           let homeId = match.home_team_id;
           let awayId = match.away_team_id;
 
+          // If Knockout, check our Running Map for winners from previous loop iterations
           if (match.stage !== 'GROUP') {
              if (!homeId && runningBracketMap[match.id]?.home) homeId = runningBracketMap[match.id].home;
              if (!awayId && runningBracketMap[match.id]?.away) awayId = runningBracketMap[match.id].away;
@@ -103,6 +144,7 @@ export function usePrediction(
 
           let homeScore = 0;
           let awayScore = 0;
+          
           let winnerId: string | null = null;
 
           const isHomeBoosted = boostedTeams.includes(homeId);
@@ -112,8 +154,15 @@ export function usePrediction(
              const homeStrength = getStrength(homeId);
              const awayStrength = getStrength(awayId);
              const randomFactor = Math.floor(Math.random() * 3) - 1; 
-             if (homeStrength < awayStrength) { homeScore = 2 + Math.max(0, randomFactor); awayScore = 0 + Math.max(0, randomFactor + 1); } 
-             else { homeScore = 0 + Math.max(0, randomFactor + 1); awayScore = 2 + Math.max(0, randomFactor); }
+             
+             if (homeStrength < awayStrength) { 
+                 homeScore = 2 + Math.max(0, randomFactor);
+                 awayScore = 0 + Math.max(0, randomFactor + 1);
+             } else {
+                 homeScore = 0 + Math.max(0, randomFactor + 1);
+                 awayScore = 2 + Math.max(0, randomFactor);
+             }
+
              if (isHomeBoosted) homeScore += 1;
              if (isAwayBoosted) awayScore += 1;
              
@@ -121,6 +170,7 @@ export function usePrediction(
              updates.push({ match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore });
 
           } else {
+             // Knockout Logic
              const homeStr = getStrength(homeId);
              const awayStr = getStrength(awayId);
              
@@ -131,6 +181,7 @@ export function usePrediction(
              newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, winner_id: winnerId };
              updates.push({ match_id: match.id, user_id: user.id, winner_id: winnerId });
 
+             // ✅ CASCADING UPDATE logic
              const winCode = `W${match.id}`;
              if (BRACKET_STRUCTURE) {
                  Object.entries(BRACKET_STRUCTURE).forEach(([futureMatchIdStr, config]) => {
@@ -153,11 +204,19 @@ export function usePrediction(
       setPredictions(newPredictions);
 
       if (updates.length > 0) {
-          supabase.from('predictions').upsert(updates, { onConflict: 'user_id, match_id' }).then(({ error }) => {
+          supabase.from('predictions').upsert(updates, { onConflict: 'user_id, match_id' })
+            .then(({ error }) => {
               if (error) console.error("Auto-fill save error:", error);
-          });
+            });
       }
   };
 
-  return { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill, handleClear };
+  return {
+    handlePredict,
+    handleReveal,
+    revealedMatches,
+    saveStatus,
+    handleAutoFill,
+    handleClear
+  };
 }
