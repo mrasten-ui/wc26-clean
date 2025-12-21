@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions, TeamData, BracketMap } from "../lib/types";
+import { BRACKET_STRUCTURE } from "../lib/bracket"; // ✅ Make sure this import works
 
 export function usePrediction(
   supabase: SupabaseClient,
@@ -96,7 +97,7 @@ export function usePrediction(
       allTeams: TeamData[], 
       targetScope: 'ALL_GROUPS' | 'KNOCKOUT', 
       boostedTeams: string[] = [],
-      bracketMap: BracketMap = {} 
+      initialBracketMap: BracketMap = {} 
   ) => {
       if (!user) return;
 
@@ -108,6 +109,9 @@ export function usePrediction(
         return acc; 
       }, {} as Record<string, TeamData>);
 
+      // Deep copy bracket map so we can simulate future rounds
+      const runningBracketMap = JSON.parse(JSON.stringify(initialBracketMap));
+
       const getStrength = (teamId: string | null) => {
           if (!teamId || !teamsMap[teamId]) return 100; 
           return teamsMap[teamId].fifa_ranking || 50; 
@@ -118,33 +122,32 @@ export function usePrediction(
       if (targetScope === 'KNOCKOUT') {
           targetMatches = matches.filter(m => m.stage !== 'GROUP');
       } else {
-          // 'ALL_GROUPS'
           targetMatches = matches.filter(m => m.stage === 'GROUP');
       }
 
-      // Sort by ID to ensure we process R32 before R16, etc.
+      // Sort matches to ensure R32 -> R16 -> QF order
       targetMatches.sort((a, b) => a.id - b.id);
 
       targetMatches.forEach(match => {
-          // We intentionally DO NOT skip existing predictions here, 
-          // allowing the user to "re-roll" or fill subsequent bracket rounds by clicking again.
-
           let homeId = match.home_team_id;
           let awayId = match.away_team_id;
 
-          // Resolve Knockout Placeholders using the Bracket Map
-          if (!homeId && bracketMap[match.id]?.home) homeId = bracketMap[match.id].home;
-          if (!awayId && bracketMap[match.id]?.away) awayId = bracketMap[match.id].away;
+          // If Knockout, check our Running Map for winners from previous loop iterations
+          if (match.stage !== 'GROUP') {
+             if (!homeId && runningBracketMap[match.id]?.home) homeId = runningBracketMap[match.id].home;
+             if (!awayId && runningBracketMap[match.id]?.away) awayId = runningBracketMap[match.id].away;
+          }
 
-          // If we still don't know the teams (e.g. dependent on previous round), skip
           if (!homeId || !awayId) return;
 
           let homeScore = 0;
           let awayScore = 0;
-          let winnerId = null;
+          
+          // ✅ FIX: Explicitly type winnerId as string | null
+          let winnerId: string | null = null;
 
-          const isHomeBoosted = boostedTeams.includes(homeId || '');
-          const isAwayBoosted = boostedTeams.includes(awayId || '');
+          const isHomeBoosted = boostedTeams.includes(homeId);
+          const isAwayBoosted = boostedTeams.includes(awayId);
 
           if (match.stage === 'GROUP') {
              const homeStrength = getStrength(homeId);
@@ -176,6 +179,26 @@ export function usePrediction(
              
              newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, winner_id: winnerId };
              updates.push({ match_id: match.id, user_id: user.id, winner_id: winnerId });
+
+             // ✅ CASCADING UPDATE: Pass winner to next round immediately
+             const winCode = `W${match.id}`;
+             
+             if (BRACKET_STRUCTURE) {
+                 Object.entries(BRACKET_STRUCTURE).forEach(([futureMatchIdStr, config]) => {
+                     const futureMatchId = parseInt(futureMatchIdStr);
+                     // Only update future matches
+                     if (futureMatchId > match.id) {
+                         if (config.home === winCode) {
+                             if (!runningBracketMap[futureMatchId]) runningBracketMap[futureMatchId] = { home: null, away: null };
+                             runningBracketMap[futureMatchId].home = winnerId;
+                         }
+                         if (config.away === winCode) {
+                             if (!runningBracketMap[futureMatchId]) runningBracketMap[futureMatchId] = { home: null, away: null };
+                             runningBracketMap[futureMatchId].away = winnerId;
+                         }
+                     }
+                 });
+             }
           }
       });
 
