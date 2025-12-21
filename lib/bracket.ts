@@ -1,8 +1,8 @@
 import { Match, Prediction, BracketMap, Standing } from "./types";
 
-// ✅ CRITICAL FIX: The word "export" MUST be here for other files to see it.
+// ✅ EXPORTED STRUCTURE: Defines who plays who from Match 73 to 104
 export const BRACKET_STRUCTURE: Record<number, { home: string, away: string }> = {
-    // ROUND OF 32 (Matches 73-88)
+    // R32
     73: { home: "2A", away: "2B" }, 74: { home: "1E", away: "3ABCDF" },
     75: { home: "1F", away: "2C" }, 76: { home: "1C", away: "2F" },
     77: { home: "1I", away: "3CDFGH" }, 78: { home: "2E", away: "2I" },
@@ -11,23 +11,18 @@ export const BRACKET_STRUCTURE: Record<number, { home: string, away: string }> =
     83: { home: "2K", away: "2L" }, 84: { home: "1H", away: "2J" },
     85: { home: "1B", away: "3EFGIJ" }, 86: { home: "1J", away: "2H" },
     87: { home: "1K", away: "3DEIJL" }, 88: { home: "2D", away: "2G" },
-
-    // ROUND OF 16 (Matches 89-96)
+    // R16
     89: { home: "W74", away: "W77" }, 90: { home: "W73", away: "W75" },
     91: { home: "W76", away: "W78" }, 92: { home: "W79", away: "W80" },
     93: { home: "W81", away: "W83" }, 94: { home: "W82", away: "W84" },
     95: { home: "W85", away: "W87" }, 96: { home: "W86", away: "W88" },
-
-    // QUARTER FINALS (Matches 97-100)
+    // QF
     97: { home: "W89", away: "W90" }, 98: { home: "W91", away: "W92" },
     99: { home: "W93", away: "W94" }, 100: { home: "W95", away: "W96" },
-
-    // SEMI FINALS (Matches 101-102)
+    // SF
     101: { home: "W97", away: "W98" }, 102: { home: "W99", away: "W100" },
-
-    // 3RD PLACE & FINAL
-    103: { home: "L101", away: "L102" }, 
-    104: { home: "W101", away: "W102" }
+    // FINAL
+    103: { home: "L101", away: "L102" }, 104: { home: "W101", away: "W102" }
 };
 
 export const calculateBracketMapping = (
@@ -37,24 +32,19 @@ export const calculateBracketMapping = (
     predictions: Record<number, Prediction>
 ): BracketMap => {
     
-    // 1. Map Group Results (e.g., "1A", "2B") to actual Team IDs
     const teamSlots: Record<string, string> = {};
     
-    // A. Map Winners (1A) and Runners-Up (2A)
     Object.keys(groupStandings).forEach(group => {
         const standings = groupStandings[group] || [];
         if (standings.length > 0) teamSlots[`1${group}`] = standings[0].teamId;
         if (standings.length > 1) teamSlots[`2${group}`] = standings[1].teamId;
     });
 
-    // B. Map Top 8 Third-Place Teams (3A, 3B...)
-    // Only the top 8 qualify for R32
     const qualifiedThirdPlaces = thirdPlaceTable.slice(0, 8);
     qualifiedThirdPlaces.forEach((t) => {
         teamSlots[`3${t.group}`] = t.teamId;
     });
 
-    // C. Helper: Find the first available 3rd place team from a list of preferred groups
     const getBestThirdPlace = (preferredGroups: string[]) => {
         for (const group of preferredGroups) {
             if (teamSlots[`3${group}`]) return teamSlots[`3${group}`];
@@ -63,21 +53,14 @@ export const calculateBracketMapping = (
         return null;
     };
 
-    // Define the specific 3rd place priority lists for the complex matches
     const thirdPlacePriorities: Record<number, string[]> = {
-        74: ["A", "B", "C", "D", "F"],
-        77: ["C", "D", "F", "G", "H"],
-        79: ["C", "E", "F", "H", "I"],
-        80: ["E", "H", "I", "J", "K"],
-        81: ["B", "E", "F", "I", "J"],
-        82: ["A", "E", "H", "I", "J"],
-        85: ["E", "F", "G", "I", "J"],
-        87: ["D", "E", "I", "J", "L"]
+        74: ["A", "B", "C", "D", "F"], 77: ["C", "D", "F", "G", "H"],
+        79: ["C", "E", "F", "H", "I"], 80: ["E", "H", "I", "J", "K"],
+        81: ["B", "E", "F", "I", "J"], 82: ["A", "E", "H", "I", "J"],
+        85: ["E", "F", "G", "I", "J"], 87: ["D", "E", "I", "J", "L"]
     };
 
     const uiMap: BracketMap = {};
-
-    // Sort matches to ensure we process R32 -> R16 -> QF sequentially
     const sortedMatches = [...matches].sort((a, b) => a.id - b.id);
 
     sortedMatches.forEach(m => {
@@ -86,68 +69,48 @@ export const calculateBracketMapping = (
         let homeId: string | null = null;
         let awayId: string | null = null;
 
-        // Recursive Winner Resolution Helper
         const resolveWinner = (code: string | undefined): string | null => {
             if (!code) return null;
-            
-            // Handle "Winner of X" (W73)
             if (code.startsWith('W')) {
                 const feederMatchId = parseInt(code.replace('W', ''));
                 const pred = predictions[feederMatchId];
-
-                // 1. Check explicit winner pick
                 if (pred && pred.winner_id) return pred.winner_id;
                 
-                // 2. Check score-based winner
+                // Fallback to Score if Winner ID missing
                 if (pred && typeof pred.home_score === 'number' && typeof pred.away_score === 'number') {
                     const feederHome = uiMap[feederMatchId]?.home;
                     const feederAway = uiMap[feederMatchId]?.away;
                     if (!feederHome || !feederAway) return null;
-
                     if (pred.home_score > pred.away_score) return feederHome;
                     if (pred.away_score > pred.home_score) return feederAway;
                 }
                 return null;
             }
-
-            // Handle "Loser of X" (L101) - For 3rd Place
             if (code.startsWith('L')) {
                 const feederMatchId = parseInt(code.replace('L', ''));
                 const pred = predictions[feederMatchId];
                 if (!pred) return null;
-
                 const feederHome = uiMap[feederMatchId]?.home;
                 const feederAway = uiMap[feederMatchId]?.away;
                 if (!feederHome || !feederAway) return null;
-
                 if (pred.winner_id === feederHome) return feederAway;
                 if (pred.winner_id === feederAway) return feederHome;
-
                 if (typeof pred.home_score === 'number' && typeof pred.away_score === 'number') {
                     if (pred.home_score > pred.away_score) return feederAway;
                     if (pred.away_score > pred.home_score) return feederHome;
                 }
                 return null;
             }
-
-            // Handle Group Codes (1A, 2B, 3C)
             if (teamSlots[code]) return teamSlots[code];
-
-            // Handle 3rd Place Complex Logic (3ABCDF)
-            if (code.startsWith('3') && code.length > 2) {
-                 return getBestThirdPlace(thirdPlacePriorities[m.id] || []);
-            }
-
+            if (code.startsWith('3') && code.length > 2) return getBestThirdPlace(thirdPlacePriorities[m.id] || []);
             return null;
         };
 
-        // --- RESOLVE TEAMS ---
         if (BRACKET_STRUCTURE[m.id]) {
             const config = BRACKET_STRUCTURE[m.id];
             homeId = resolveWinner(config.home);
             awayId = resolveWinner(config.away);
         } else {
-            // Fallback to database codes if not in our hardcoded structure
             if (!homeId && m.home_team_id) homeId = m.home_team_id;
             if (!awayId && m.away_team_id) awayId = m.away_team_id;
             if (!homeId) homeId = resolveWinner(m.home_code || '');

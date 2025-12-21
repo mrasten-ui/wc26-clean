@@ -23,15 +23,32 @@ const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
     <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
 );
 
+// ✅ FIXED: Type-Safe Team Name Lookup (No more red lines)
 const getTeamName = (id: string, def: string, lang: string, showNicknames: boolean) => {
     if (!id) return def;
-    if (lang === 'no' && TEAM_NAMES_NO[id]) return TEAM_NAMES_NO[id];
+
+    // 1. Check Norwegian Override
+    if (lang === 'no' && TEAM_NAMES_NO && TEAM_NAMES_NO[id]) {
+        return TEAM_NAMES_NO[id];
+    }
+
+    // 2. Check Nicknames
     if (showNicknames) {
         // @ts-ignore
-        if (TEAM_NICKNAMES[lang]?.[id]) return TEAM_NICKNAMES[lang][id];
+        const nicknames = TEAM_NICKNAMES[lang];
+        if (nicknames && nicknames[id]) {
+            return nicknames[id];
+        }
     }
+
+    // 3. Check Standard Translation
     // @ts-ignore
-    if (TEAM_NAMES[lang]?.[id]) return TEAM_NAMES[lang][id];
+    const names = TEAM_NAMES[lang];
+    if (names && names[id]) {
+        return names[id];
+    }
+
+    // 4. Fallback to Database Name
     return def;
 };
 
@@ -41,13 +58,17 @@ export default function Home() {
   const [lang, setLang] = useState('en');
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
+  
+  // ✅ TAB ORDER: Groups -> Knockout -> Matches -> Results
   const [currentMainTab, setCurrentMainTab] = useState<"GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES">("GROUPS");
+  
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [showNicknames, setShowNicknames] = useState(false);
   
   const t = TRANSLATIONS[lang as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
 
+  // ✅ Extract handleClear from hook
   const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill, handleClear } = usePrediction(
       supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
@@ -61,6 +82,8 @@ export default function Home() {
       setLang(l);
       localStorage.setItem("wc26_lang", l);
   };
+
+  // --- CALCULATIONS ---
 
   const matchesByGroup = useMemo(() => {
     const groups: Record<string, Match[]> = {};
@@ -80,6 +103,8 @@ export default function Home() {
   }, [matches, predictions]);
 
   const thirdPlaceTable = useMemo(() => calculateThirdPlaceStandings(matches, predictions), [matches, predictions]);
+  
+  // ✅ Bracket Map is calculated here and passed to AutoFill
   const bracketMap = useMemo(() => calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions), [groupStandings, thirdPlaceTable, matches, predictions]);
   
   const teamsMap = useMemo(() => {
@@ -95,6 +120,7 @@ export default function Home() {
   const handleSmartClear = () => {
       const scope = currentMainTab === 'KNOCKOUT' ? 'Knockout' : 'All Groups';
       if (confirm(`Are you sure you want to clear ${scope} predictions? This cannot be undone.`)) {
+         // ✅ FIXED: Clear based on current section
          handleClear(currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS');
       }
   };
@@ -233,6 +259,7 @@ export default function Home() {
       <AutoFillModal 
           isOpen={isAutoFillModalOpen} 
           onClose={() => setIsAutoFillModalOpen(false)} 
+          // ✅ PASSING "ALL_GROUPS" OR "KNOCKOUT" + BRACKET MAP
           onConfirm={(boostedTeams) => handleAutoFill(
               allTeams, 
               currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS', 
