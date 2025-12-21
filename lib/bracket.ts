@@ -1,6 +1,6 @@
 import { Match, Prediction, BracketMap, Standing } from "./types";
 
-// ✅ EXPORTED CONSTANT: This is what usePrediction.ts is looking for
+// ✅ ADDED "export" HERE - This was the missing key
 export const BRACKET_STRUCTURE: Record<number, { home: string, away: string }> = {
     // ROUND OF 32 (Matches 73-88)
     73: { home: "2A", away: "2B" }, 74: { home: "1E", away: "3ABCDF" },
@@ -30,9 +30,6 @@ export const BRACKET_STRUCTURE: Record<number, { home: string, away: string }> =
     104: { home: "W101", away: "W102" }
 };
 
-/**
- * Calculates the dynamic bracket tree based on FIFA World Cup 2026 Structure
- */
 export const calculateBracketMapping = (
     groupStandings: Record<string, Standing[]>, 
     thirdPlaceTable: (Standing & { group: string })[], 
@@ -40,47 +37,37 @@ export const calculateBracketMapping = (
     predictions: Record<number, Prediction>
 ): BracketMap => {
     
-    // 1. Map Group Results (e.g., "1A", "2B") to actual Team IDs
+    // 1. Map Group Results
     const teamSlots: Record<string, string> = {};
     
-    // A. Map Winners (1A) and Runners-Up (2A)
     Object.keys(groupStandings).forEach(group => {
         const standings = groupStandings[group] || [];
         if (standings.length > 0) teamSlots[`1${group}`] = standings[0].teamId;
         if (standings.length > 1) teamSlots[`2${group}`] = standings[1].teamId;
     });
 
-    // B. Map Top 8 Third-Place Teams (3A, 3B...)
     const qualifiedThirdPlaces = thirdPlaceTable.slice(0, 8);
     qualifiedThirdPlaces.forEach((t) => {
         teamSlots[`3${t.group}`] = t.teamId;
     });
 
-    // C. Helper: Find the first available 3rd place team from a list of preferred groups
     const getBestThirdPlace = (preferredGroups: string[]) => {
         for (const group of preferredGroups) {
             if (teamSlots[`3${group}`]) return teamSlots[`3${group}`];
         }
-        // Fallback: Just take the highest ranked one available if exact match fails
         if (qualifiedThirdPlaces.length > 0) return qualifiedThirdPlaces[0].teamId;
         return null;
     };
 
-    // Define the specific 3rd place priority lists for the complex matches
     const thirdPlacePriorities: Record<number, string[]> = {
-        74: ["A", "B", "C", "D", "F"],
-        77: ["C", "D", "F", "G", "H"],
-        79: ["C", "E", "F", "H", "I"],
-        80: ["E", "H", "I", "J", "K"],
-        81: ["B", "E", "F", "I", "J"],
-        82: ["A", "E", "H", "I", "J"],
-        85: ["E", "F", "G", "I", "J"],
-        87: ["D", "E", "I", "J", "L"]
+        74: ["A", "B", "C", "D", "F"], 77: ["C", "D", "F", "G", "H"],
+        79: ["C", "E", "F", "H", "I"], 80: ["E", "H", "I", "J", "K"],
+        81: ["B", "E", "F", "I", "J"], 82: ["A", "E", "H", "I", "J"],
+        85: ["E", "F", "G", "I", "J"], 87: ["D", "E", "I", "J", "L"]
     };
 
     const uiMap: BracketMap = {};
 
-    // Sort matches to ensure we process R32 -> R16 -> QF sequentially
     const sortedMatches = [...matches].sort((a, b) => a.id - b.id);
 
     sortedMatches.forEach(m => {
@@ -89,43 +76,33 @@ export const calculateBracketMapping = (
         let homeId: string | null = null;
         let awayId: string | null = null;
 
-        // Recursive Winner Resolution Helper
         const resolveWinner = (code: string | undefined): string | null => {
             if (!code) return null;
             
-            // Handle "Winner of X" (W73)
             if (code.startsWith('W')) {
                 const feederMatchId = parseInt(code.replace('W', ''));
                 const pred = predictions[feederMatchId];
-
-                // 1. Check explicit winner pick
                 if (pred && pred.winner_id) return pred.winner_id;
                 
-                // 2. Check score-based winner
                 if (pred && typeof pred.home_score === 'number' && typeof pred.away_score === 'number') {
                     const feederHome = uiMap[feederMatchId]?.home;
                     const feederAway = uiMap[feederMatchId]?.away;
                     if (!feederHome || !feederAway) return null;
-
                     if (pred.home_score > pred.away_score) return feederHome;
                     if (pred.away_score > pred.home_score) return feederAway;
                 }
                 return null;
             }
 
-            // Handle "Loser of X" (L101) - For 3rd Place
             if (code.startsWith('L')) {
                 const feederMatchId = parseInt(code.replace('L', ''));
                 const pred = predictions[feederMatchId];
                 if (!pred) return null;
-
                 const feederHome = uiMap[feederMatchId]?.home;
                 const feederAway = uiMap[feederMatchId]?.away;
                 if (!feederHome || !feederAway) return null;
-
                 if (pred.winner_id === feederHome) return feederAway;
                 if (pred.winner_id === feederAway) return feederHome;
-
                 if (typeof pred.home_score === 'number' && typeof pred.away_score === 'number') {
                     if (pred.home_score > pred.away_score) return feederAway;
                     if (pred.away_score > pred.home_score) return feederHome;
@@ -133,24 +110,16 @@ export const calculateBracketMapping = (
                 return null;
             }
 
-            // Handle Group Codes (1A, 2B, 3C)
             if (teamSlots[code]) return teamSlots[code];
-
-            // Handle 3rd Place Complex Logic (3ABCDF)
-            if (code.startsWith('3') && code.length > 2) {
-                 return getBestThirdPlace(thirdPlacePriorities[m.id] || []);
-            }
-
+            if (code.startsWith('3') && code.length > 2) return getBestThirdPlace(thirdPlacePriorities[m.id] || []);
             return null;
         };
 
-        // --- RESOLVE TEAMS ---
         if (BRACKET_STRUCTURE[m.id]) {
             const config = BRACKET_STRUCTURE[m.id];
             homeId = resolveWinner(config.home);
             awayId = resolveWinner(config.away);
         } else {
-            // Fallback to database codes if not in our hardcoded structure
             if (!homeId && m.home_team_id) homeId = m.home_team_id;
             if (!awayId && m.away_team_id) awayId = m.away_team_id;
             if (!homeId) homeId = resolveWinner(m.home_code || '');
