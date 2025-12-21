@@ -1,5 +1,3 @@
-// lib/constants.ts
-
 export const COLORS = {
   navy: '#0f172a',
   blue: '#3b82f6',
@@ -29,6 +27,7 @@ export const STAGE_COLORS: Record<string, string> = {
   'FINAL': '#eab308'
 };
 
+// ✅ ADDED 'no', 'us', 'sc' to satisfy TypeScript
 export const TRANSLATIONS = {
   en: {
     appName: "The Rasten Cup '26",
@@ -43,25 +42,57 @@ export const TRANSLATIONS = {
     played: "Pl",
     gd: "GD"
   },
-  // Add other languages here if needed
+  no: {
+    appName: "The Rasten Cup '26",
+    loading: "Laster VM Data...",
+    groupStage: "Grupper",
+    knockout: "Sluttspill",
+    matches: "Kamper",
+    results: "Tabellen",
+    autoFill: "Auto-Fyll",
+    processing: "Lagrer...",
+    points: "P",
+    played: "K",
+    gd: "MF"
+  },
+  us: {
+    appName: "The Rasten Cup '26",
+    loading: "Loading World Cup Data...",
+    groupStage: "Groups",
+    knockout: "Knockout",
+    matches: "Matches",
+    results: "Standings",
+    autoFill: "Auto-Fill",
+    processing: "Saving...",
+    points: "Pts",
+    played: "Pl",
+    gd: "GD"
+  },
+  sc: {
+    appName: "The Rasten Cup '26",
+    loading: "Loading World Cup Data...",
+    groupStage: "Groups",
+    knockout: "Knockout",
+    matches: "Fixtures",
+    results: "The Table",
+    autoFill: "Auto-Fill",
+    processing: "Saving...",
+    points: "Pts",
+    played: "Pl",
+    gd: "GD"
+  }
 };
 
-// ✅ FIXED: Explicitly typed as Record<string, string> so TypeScript allows lookups
+// ✅ EXPORTED TEAM NAMES (Matches your latest fix)
 export const TEAM_NAMES: Record<string, Record<string, string>> = {
-    en: {
-        "AFG": "Afghanistan",
-        // ... (Your team list goes here, or leave empty if using DB names)
-    }
+    en: { "AFG": "Afghanistan" },
+    no: { "AFG": "Afghanistan" },
+    us: { "AFG": "Afghanistan" },
+    sc: { "AFG": "Afghanistan" }
 };
-
 export const TEAM_NICKNAMES: Record<string, Record<string, string>> = {
-    en: {
-        "BRA": "Seleção",
-        // ...
-    }
+    en: { "BRA": "Seleção" }
 };
-
 export const TEAM_NAMES_NO: Record<string, string> = {
-    "NOR": "Norge",
-    // ...
+    "NOR": "Norge"
 };
