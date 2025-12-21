@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { UserData, Match, Prediction, LeaderboardEntry, GlobalPredictions, TeamData, BracketMap } from "../lib/types";
-// ✅ This import will now work
+// ✅ IMPORT MATCHING THE EXPORT
 import { BRACKET_STRUCTURE } from "../lib/bracket";
 
 export function usePrediction(
@@ -103,7 +103,7 @@ export function usePrediction(
 
           let homeScore = 0;
           let awayScore = 0;
-          let winnerId: string | null = null; // ✅ Explicit type fix
+          let winnerId: string | null = null;
 
           const isHomeBoosted = boostedTeams.includes(homeId);
           const isAwayBoosted = boostedTeams.includes(awayId);
@@ -131,7 +131,6 @@ export function usePrediction(
              newPredictions[match.id] = { ...newPredictions[match.id], match_id: match.id, user_id: user.id, winner_id: winnerId };
              updates.push({ match_id: match.id, user_id: user.id, winner_id: winnerId });
 
-             // ✅ CASCADING UPDATE logic
              const winCode = `W${match.id}`;
              if (BRACKET_STRUCTURE) {
                  Object.entries(BRACKET_STRUCTURE).forEach(([futureMatchIdStr, config]) => {

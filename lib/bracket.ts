@@ -1,6 +1,6 @@
 import { Match, Prediction, BracketMap, Standing } from "./types";
 
-// ✅ ADDED "export" HERE - This was the missing key
+// ✅ ADDED "export" - This fixes the build error and the QF logic
 export const BRACKET_STRUCTURE: Record<number, { home: string, away: string }> = {
     // ROUND OF 32 (Matches 73-88)
     73: { home: "2A", away: "2B" }, 74: { home: "1E", away: "3ABCDF" },
@@ -37,15 +37,16 @@ export const calculateBracketMapping = (
     predictions: Record<number, Prediction>
 ): BracketMap => {
     
-    // 1. Map Group Results
     const teamSlots: Record<string, string> = {};
     
+    // Map Groups
     Object.keys(groupStandings).forEach(group => {
         const standings = groupStandings[group] || [];
         if (standings.length > 0) teamSlots[`1${group}`] = standings[0].teamId;
         if (standings.length > 1) teamSlots[`2${group}`] = standings[1].teamId;
     });
 
+    // Map 3rd Place
     const qualifiedThirdPlaces = thirdPlaceTable.slice(0, 8);
     qualifiedThirdPlaces.forEach((t) => {
         teamSlots[`3${t.group}`] = t.teamId;
@@ -67,7 +68,6 @@ export const calculateBracketMapping = (
     };
 
     const uiMap: BracketMap = {};
-
     const sortedMatches = [...matches].sort((a, b) => a.id - b.id);
 
     sortedMatches.forEach(m => {
@@ -103,10 +103,6 @@ export const calculateBracketMapping = (
                 if (!feederHome || !feederAway) return null;
                 if (pred.winner_id === feederHome) return feederAway;
                 if (pred.winner_id === feederAway) return feederHome;
-                if (typeof pred.home_score === 'number' && typeof pred.away_score === 'number') {
-                    if (pred.home_score > pred.away_score) return feederAway;
-                    if (pred.away_score > pred.home_score) return feederHome;
-                }
                 return null;
             }
 
