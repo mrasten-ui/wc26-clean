@@ -122,17 +122,21 @@ export function usePrediction(
           targetMatches = matches.filter(m => m.stage === 'GROUP');
       }
 
+      // Sort by ID to ensure we process R32 before R16, etc.
+      targetMatches.sort((a, b) => a.id - b.id);
+
       targetMatches.forEach(match => {
-          // ❌ REMOVED the check that prevents overwriting. 
-          // Now it will calculate a fresh score every time you click.
+          // We intentionally DO NOT skip existing predictions here, 
+          // allowing the user to "re-roll" or fill subsequent bracket rounds by clicking again.
 
           let homeId = match.home_team_id;
           let awayId = match.away_team_id;
 
-          // Resolve Knockout Placeholders
+          // Resolve Knockout Placeholders using the Bracket Map
           if (!homeId && bracketMap[match.id]?.home) homeId = bracketMap[match.id].home;
           if (!awayId && bracketMap[match.id]?.away) awayId = bracketMap[match.id].away;
 
+          // If we still don't know the teams (e.g. dependent on previous round), skip
           if (!homeId || !awayId) return;
 
           let homeScore = 0;
@@ -162,7 +166,7 @@ export function usePrediction(
              updates.push({ match_id: match.id, user_id: user.id, home_score: homeScore, away_score: awayScore });
 
           } else {
-             // Knockout
+             // Knockout Logic
              const homeStr = getStrength(homeId);
              const awayStr = getStrength(awayId);
              
@@ -191,6 +195,6 @@ export function usePrediction(
     revealedMatches,
     saveStatus,
     handleAutoFill,
-    handleClear // ✅ Exported
+    handleClear
   };
 }

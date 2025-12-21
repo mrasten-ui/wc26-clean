@@ -41,16 +41,13 @@ export default function Home() {
   const [lang, setLang] = useState('en');
   const [activeTab, setActiveTab] = useState("A");
   const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
-  
   const [currentMainTab, setCurrentMainTab] = useState<"GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES">("GROUPS");
-  
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [showNicknames, setShowNicknames] = useState(false);
   
   const t = TRANSLATIONS[lang as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
 
-  // ✅ Extract handleClear from hook
   const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill, handleClear } = usePrediction(
       supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
   );
@@ -64,8 +61,6 @@ export default function Home() {
       setLang(l);
       localStorage.setItem("wc26_lang", l);
   };
-
-  // --- CALCULATIONS ---
 
   const matchesByGroup = useMemo(() => {
     const groups: Record<string, Match[]> = {};
@@ -100,7 +95,6 @@ export default function Home() {
   const handleSmartClear = () => {
       const scope = currentMainTab === 'KNOCKOUT' ? 'Knockout' : 'All Groups';
       if (confirm(`Are you sure you want to clear ${scope} predictions? This cannot be undone.`)) {
-         // ✅ FIXED: Clear based on current section
          handleClear(currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS');
       }
   };
@@ -163,6 +157,7 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
+      {/* STICKY TAB BAR */}
       <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
          {["GROUPS", "KNOCKOUT", "MATCHES", "RESULTS"].map(tab => (
              <button 
@@ -238,7 +233,6 @@ export default function Home() {
       <AutoFillModal 
           isOpen={isAutoFillModalOpen} 
           onClose={() => setIsAutoFillModalOpen(false)} 
-          // ✅ FIXED: Pass 'ALL_GROUPS' so it fills everything at once
           onConfirm={(boostedTeams) => handleAutoFill(
               allTeams, 
               currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS', 
