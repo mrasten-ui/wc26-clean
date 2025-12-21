@@ -1,3 +1,5 @@
+// lib/constants.ts
+
 export const COLORS = {
   navy: '#0f172a',
   blue: '#3b82f6',
@@ -27,7 +29,7 @@ export const STAGE_COLORS: Record<string, string> = {
   'FINAL': '#eab308'
 };
 
-// ✅ ADDED 'no', 'us', 'sc' to satisfy TypeScript
+// ✅ FIXED: Added 'authSuccess' and other login keys to ALL languages
 export const TRANSLATIONS = {
   en: {
     appName: "The Rasten Cup '26",
@@ -40,7 +42,15 @@ export const TRANSLATIONS = {
     processing: "Saving...",
     points: "Pts",
     played: "Pl",
-    gd: "GD"
+    gd: "GD",
+    authSuccess: "Check your email for the confirmation link!",
+    login: "Login",
+    signUp: "Sign Up",
+    fullName: "Full Name",
+    email: "Email Address",
+    password: "Password",
+    enter: "Enter Stadium",
+    createAccount: "Create Account"
   },
   no: {
     appName: "The Rasten Cup '26",
@@ -53,7 +63,15 @@ export const TRANSLATIONS = {
     processing: "Lagrer...",
     points: "P",
     played: "K",
-    gd: "MF"
+    gd: "MF",
+    authSuccess: "Sjekk e-posten din for bekreftelseslink!",
+    login: "Logg Inn",
+    signUp: "Registrer",
+    fullName: "Fullt Navn",
+    email: "E-postadresse",
+    password: "Passord",
+    enter: "Gå til Stadion",
+    createAccount: "Opprett Konto"
   },
   us: {
     appName: "The Rasten Cup '26",
@@ -66,7 +84,15 @@ export const TRANSLATIONS = {
     processing: "Saving...",
     points: "Pts",
     played: "Pl",
-    gd: "GD"
+    gd: "GD",
+    authSuccess: "Check your email for the confirmation link!",
+    login: "Login",
+    signUp: "Sign Up",
+    fullName: "Full Name",
+    email: "Email Address",
+    password: "Password",
+    enter: "Enter Stadium",
+    createAccount: "Create Account"
   },
   sc: {
     appName: "The Rasten Cup '26",
@@ -79,20 +105,30 @@ export const TRANSLATIONS = {
     processing: "Saving...",
     points: "Pts",
     played: "Pl",
-    gd: "GD"
+    gd: "GD",
+    authSuccess: "Check yer email for the link!",
+    login: "Login",
+    signUp: "Sign Up",
+    fullName: "Full Name",
+    email: "Email Address",
+    password: "Password",
+    enter: "Enter Stadium",
+    createAccount: "Create Account"
   }
 };
 
-// ✅ EXPORTED TEAM NAMES (Matches your latest fix)
+// ✅ FIXED: Explicitly typed as Record<string, string> to fix red lines in page.tsx
 export const TEAM_NAMES: Record<string, Record<string, string>> = {
     en: { "AFG": "Afghanistan" },
     no: { "AFG": "Afghanistan" },
     us: { "AFG": "Afghanistan" },
     sc: { "AFG": "Afghanistan" }
 };
+
 export const TEAM_NICKNAMES: Record<string, Record<string, string>> = {
     en: { "BRA": "Seleção" }
 };
+
 export const TEAM_NAMES_NO: Record<string, string> = {
     "NOR": "Norge"
 };
