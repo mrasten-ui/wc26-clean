@@ -1,277 +1,212 @@
 "use client";
-import { useState, Suspense, useEffect, useMemo } from "react"; 
-import { supabase } from "../lib/supabase"; 
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../lib/supabase';
+import { useRouter } from 'next/navigation';
+import { TRANSLATIONS } from '../lib/constants';
 
-import { useAppData } from "../hooks/useAppData"; 
-import { usePrediction } from "../hooks/usePrediction"; 
-import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator"; 
-import { calculateBracketMapping } from "../lib/bracket"; 
-import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants"; 
-import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
+// Define valid keys based on what actually exists in TRANSLATIONS
+type Language = 'en' | 'no' | 'us' | 'sc';
 
-import Header from "../components/Header"; 
-import Leaderboard from "../components/Leaderboard";
-import Bracket from "../components/Bracket";
-import GroupStage from "../components/GroupStage";
-import MatchCenter from "../components/MatchCenter";
-import AutoFillModal from "../components/AutoFillModal"; 
-import RulesModal from "../components/RulesModal";
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState<Language>('en');
 
-const WelcomeListener = ({ onOpen }: { onOpen: () => void }) => { return null; };
-
-const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
-    <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
-);
-
-// ✅ FIXED: Type-Safe Team Name Lookup (No more red lines)
-const getTeamName = (id: string, def: string, lang: string, showNicknames: boolean) => {
-    if (!id) return def;
-
-    // 1. Check Norwegian Override
-    if (lang === 'no' && TEAM_NAMES_NO && TEAM_NAMES_NO[id]) {
-        return TEAM_NAMES_NO[id];
-    }
-
-    // 2. Check Nicknames
-    if (showNicknames) {
-        // @ts-ignore
-        const nicknames = TEAM_NICKNAMES[lang];
-        if (nicknames && nicknames[id]) {
-            return nicknames[id];
-        }
-    }
-
-    // 3. Check Standard Translation
-    // @ts-ignore
-    const names = TEAM_NAMES[lang];
-    if (names && names[id]) {
-        return names[id];
-    }
-
-    // 4. Fallback to Database Name
-    return def;
-};
-
-export default function Home() {
-  const { user, matches, predictions, setPredictions, allPredictions, leaderboard, champion, setChampion, allTeams, revealCount, setRevealCount, loading } = useAppData();
-  
-  const [lang, setLang] = useState('en');
-  const [activeTab, setActiveTab] = useState("A");
-  const [activeKnockoutRound, setActiveKnockoutRound] = useState("R32");
-  
-  // ✅ TAB ORDER: Groups -> Knockout -> Matches -> Results
-  const [currentMainTab, setCurrentMainTab] = useState<"GROUPS" | "KNOCKOUT" | "MATCHES" | "RESULTS" | "RULES">("GROUPS");
-  
-  const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
-  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
-  const [showNicknames, setShowNicknames] = useState(false);
-  
+  // ✅ FIX: Safe Translation Lookup
+  // If the selected language doesn't exist, it falls back to English ('en')
   const t = TRANSLATIONS[lang as keyof typeof TRANSLATIONS] || TRANSLATIONS.en;
 
-  // ✅ Extract handleClear from hook
-  const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill, handleClear } = usePrediction(
-      supabase, user, matches, predictions, setPredictions, allPredictions, revealCount, setRevealCount, leaderboard, setActiveTab
-  );
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    const saved = localStorage.getItem("wc26_lang");
-    if (saved) setLang(saved);
+    // Attempt to load saved language
+    const savedLang = localStorage.getItem('wc26_lang') as Language;
+    if (savedLang && ['en', 'no', 'us', 'sc'].includes(savedLang)) {
+        setLang(savedLang);
+    }
+
+    if (videoRef.current) {
+        videoRef.current.playbackRate = 0.7;
+    }
   }, []);
 
-  const changeLang = (l: any) => {
+  const handleLanguageChange = (l: Language) => {
       setLang(l);
-      localStorage.setItem("wc26_lang", l);
+      localStorage.setItem('wc26_lang', l);
   };
 
-  // --- CALCULATIONS ---
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-  const matchesByGroup = useMemo(() => {
-    const groups: Record<string, Match[]> = {};
-    GROUPS.forEach(g => {
-        groups[g] = matches.filter(m => m.stage === 'GROUP' && m.home_team?.group_id === g);
-    });
-    return groups;
-  }, [matches]);
-
-  const groupStandings = useMemo(() => {
-     const st: Record<string, any[]> = {};
-     GROUPS.forEach(g => {
-         const groupMatches = matches.filter(m => m.stage === 'GROUP' && m.home_team?.group_id === g);
-         st[g] = calculateGroupStandings(groupMatches, predictions);
-     });
-     return st;
-  }, [matches, predictions]);
-
-  const thirdPlaceTable = useMemo(() => calculateThirdPlaceStandings(matches, predictions), [matches, predictions]);
-  
-  // ✅ Bracket Map is calculated here and passed to AutoFill
-  const bracketMap = useMemo(() => calculateBracketMapping(groupStandings, thirdPlaceTable, matches, predictions), [groupStandings, thirdPlaceTable, matches, predictions]);
-  
-  const teamsMap = useMemo(() => {
-      return allTeams.reduce((acc, t) => { acc[t.id] = t; return acc; }, {} as Record<string, TeamData>);
-  }, [allTeams]);
-
-  // --- HANDLERS ---
-
-  const handleSmartAutoFill = () => {
-      setIsAutoFillModalOpen(true);
-  };
-
-  const handleSmartClear = () => {
-      const scope = currentMainTab === 'KNOCKOUT' ? 'Knockout' : 'All Groups';
-      if (confirm(`Are you sure you want to clear ${scope} predictions? This cannot be undone.`)) {
-         // ✅ FIXED: Clear based on current section
-         handleClear(currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS');
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName },
+        },
+      });
+      if (error) setError(error.message);
+      else {
+          alert('Check your email for the confirmation link!');
+          setIsSignUp(false);
       }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) setError(error.message);
+      else router.push('/');
+    }
+    setLoading(false);
   };
-  
-  const handleLogout = async () => {
-      await supabase.auth.signOut();
-      window.location.href = "/login";
-  };
-
-  if (loading) return <LoadingComponent t={t} COLORS={COLORS} />;
-
-  // --- STATUS DOTS ---
-
-  const getSubTabStatusDot = (groupId: string) => {
-      const ms = matchesByGroup[groupId] || [];
-      if (ms.length === 0) return 'bg-slate-600';
-      const predicted = ms.filter(m => predictions[m.id]);
-      if (predicted.length === ms.length) return 'bg-green-500';
-      if (predicted.length > 0) return 'bg-orange-400';
-      return 'bg-slate-600';
-  };
-
-  const getKnockoutDot = (stage: string) => {
-      const ms = matches.filter(m => m.stage === stage);
-      if (ms.length === 0) return 'bg-slate-600';
-      const predicted = ms.filter(m => predictions[m.id]?.winner_id);
-      if (predicted.length === ms.length) return 'bg-green-500';
-      if (predicted.length > 0) return 'bg-orange-400';
-      return 'bg-slate-600';
-  };
-
-  const isTournamentComplete = Object.values(groupStandings).every(g => g.length === 4 && g.every(t => t.played === 3));
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-20">
-      <Header 
-         user={user}
-         activeTab={activeTab}
-         setActiveTab={setActiveTab}
-         activeKnockoutRound={activeKnockoutRound}
-         setActiveKnockoutRound={setActiveKnockoutRound}
-         currentMainTab={currentMainTab}
-         saveStatus={saveStatus}
-         revealCount={revealCount}
-         isGenerating={false}
-         handleGroupAutoFill={handleSmartAutoFill}
-         handleKnockoutAutoFill={handleSmartAutoFill}
-         handleClearPredictions={handleSmartClear}
-         hasPredictions={Object.keys(predictions).length > 0}
-         isTournamentComplete={isTournamentComplete}
-         handleLogout={handleLogout}
-         lang={lang as any}
-         setLang={changeLang}
-         t={t}
-         getMainTabStatus={() => 'bg-green-500'} 
-         getGroupStatus={getSubTabStatusDot}
-         getKnockoutStatus={(s: string) => getKnockoutDot(s) === 'bg-green-500' ? 'complete' : 'empty'}
-         onOpenRules={() => setIsRulesModalOpen(true)}
-         showNicknames={showNicknames}
-         setShowNicknames={setShowNicknames}
-      />
-
-      {/* STICKY TAB BAR */}
-      <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
-         {["GROUPS", "KNOCKOUT", "MATCHES", "RESULTS"].map(tab => (
-             <button 
-                key={tab}
-                onClick={() => {
-                    setCurrentMainTab(tab as any);
-                    window.scrollTo({top: 0, behavior: 'smooth'});
-                }}
-                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-colors border-b-4 ${currentMainTab === tab ? "text-blue-900 border-blue-600 bg-blue-50" : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50"}`}
-             >
-                 {(t as any)[tab.toLowerCase()] || tab}
-             </button>
-         ))}
-      </div>
-
-      <div className="pt-4 px-2 md:px-0 max-w-5xl mx-auto">
-        
-        {currentMainTab === "GROUPS" && (
-             <GroupStage 
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                matchesByGroup={matchesByGroup} 
-                predictions={predictions}
-                handlePredict={handlePredict} 
-                leaderboard={leaderboard} 
-                allPredictions={allPredictions} 
-                user={user} 
-                revealCount={revealCount} 
-                handleRevealSelection={handleReveal} 
-                revealedMatches={revealedMatches} 
-                t={t} 
-                lang={lang} 
-                getTeamName={(id, def) => getTeamName(id, def, lang, showNicknames)}
-                standings={groupStandings[activeTab] || []}
-             />
-        )}
-
-        {currentMainTab === "KNOCKOUT" && (
-            <Bracket 
-                activeKnockoutRound={activeKnockoutRound}
-                setActiveKnockoutRound={setActiveKnockoutRound}
-                knockoutStages={KNOCKOUT_STAGES}
-                matches={matches}
-                predictions={predictions}
-                bracketMap={bracketMap}
-                teamsMap={teamsMap}
-                handlePredict={handlePredict}
-                isTournamentComplete={isTournamentComplete} 
-                champion={champion}
-                t={t}
-                getTeamName={(id, def) => getTeamName(id, def, lang, showNicknames)}
-            />
-        )}
-
-        {currentMainTab === "MATCHES" && (
-            <MatchCenter 
-                matches={matches} 
-                predictions={predictions} 
-                t={t} 
-                onCompare={() => {}} 
-            />
-        )}
-        
-        {currentMainTab === "RESULTS" && (
-             <Leaderboard leaderboard={leaderboard} t={t} matches={matches} allPredictions={allPredictions} user={user} lang={lang} />
-        )}
-      </div>
-
-      <Suspense fallback={null}>
-          <WelcomeListener onOpen={() => setIsRulesModalOpen(true)} />
-      </Suspense>
-
-      <AutoFillModal 
-          isOpen={isAutoFillModalOpen} 
-          onClose={() => setIsAutoFillModalOpen(false)} 
-          // ✅ PASSING "ALL_GROUPS" OR "KNOCKOUT" + BRACKET MAP
-          onConfirm={(boostedTeams) => handleAutoFill(
-              allTeams, 
-              currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS', 
-              boostedTeams, 
-              bracketMap
-          )} 
-          allTeams={allTeams} 
-          lang={lang} 
-          t={t} 
-      />
-      <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} t={t} />
+    <div className="relative min-h-screen w-full overflow-hidden font-sans">
       
-    </main>
+      {/* BACKGROUND VIDEO */}
+      <div className="absolute inset-0 z-0">
+         <div className="absolute inset-0 bg-navy-900/80 z-10" /> 
+         <video 
+            ref={videoRef}
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="w-full h-full object-cover opacity-40"
+         >
+            <source src="/intro.mp4" type="video/mp4" />
+         </video>
+         
+         {/* OVERLAY GRADIENT */}
+         <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/80 to-transparent z-20" />
+      </div>
+
+      {/* LANGUAGE SWITCHER */}
+      <div className="absolute top-6 left-6 z-50 flex gap-3">
+          <button onClick={() => handleLanguageChange('en')} className={`transition-transform hover:scale-110 ${lang === 'en' ? 'opacity-100 scale-110' : 'opacity-50'}`}>
+              <img src="/flags/gb.svg" className="w-8 h-6 rounded shadow-lg" alt="English" />
+          </button>
+          <button onClick={() => handleLanguageChange('no')} className={`transition-transform hover:scale-110 ${lang === 'no' ? 'opacity-100 scale-110' : 'opacity-50'}`}>
+              <img src="/flags/no.svg" className="w-8 h-6 rounded shadow-lg" alt="Norsk" />
+          </button>
+          <button onClick={() => handleLanguageChange('us')} className={`transition-transform hover:scale-110 ${lang === 'us' ? 'opacity-100 scale-110' : 'opacity-50'}`}>
+              <img src="/flags/us.svg" className="w-8 h-6 rounded shadow-lg" alt="USA" />
+          </button>
+          <button onClick={() => handleLanguageChange('sc')} className={`transition-transform hover:scale-110 ${lang === 'sc' ? 'opacity-100 scale-110' : 'opacity-50'}`}>
+              <img src="/flags/scot.svg" className="w-8 h-6 rounded shadow-lg" alt="Scottish" />
+          </button>
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div className="relative z-30 flex flex-col items-center justify-center min-h-screen px-4">
+        
+        {/* LOGO AREA */}
+        <div className="mb-8 flex flex-col items-center animate-fade-in-down">
+            <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-2xl mb-4 group hover:bg-white/20 transition-all cursor-pointer">
+                <span className="text-5xl group-hover:scale-110 transition-transform">🏆</span>
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter text-center drop-shadow-lg">
+                {t?.appName || "THE RASTEN CUP '26"}
+            </h1>
+            <div className="h-1 w-20 bg-blue-500 rounded-full mt-4 shadow-[0_0_15px_rgba(59,130,246,0.8)]" />
+        </div>
+
+        {/* LOGIN CARD */}
+        <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl animate-fade-in-up">
+            
+            <div className="flex justify-center mb-8">
+                <div className="flex bg-black/30 p-1 rounded-full">
+                    <button 
+                        onClick={() => setIsSignUp(false)}
+                        className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${!isSignUp ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        Login
+                    </button>
+                    <button 
+                        onClick={() => setIsSignUp(true)}
+                        className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${isSignUp ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    >
+                        Sign Up
+                    </button>
+                </div>
+            </div>
+
+            <form onSubmit={handleAuth} className="space-y-5">
+                {isSignUp && (
+                    <div className="group">
+                        <label className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1 ml-2">Full Name</label>
+                        <input
+                            type="text"
+                            placeholder="Cristiano Ronaldo"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:bg-black/40 transition-all text-sm font-medium"
+                            required
+                        />
+                    </div>
+                )}
+
+                <div className="group">
+                    <label className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1 ml-2">Email Address</label>
+                    <input
+                        type="email"
+                        placeholder="player@worldcup.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:bg-black/40 transition-all text-sm font-medium"
+                        required
+                    />
+                </div>
+
+                <div className="group">
+                    <label className="block text-[10px] font-bold text-blue-300 uppercase tracking-wider mb-1 ml-2">Password</label>
+                    <input
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:bg-black/40 transition-all text-sm font-medium"
+                        required
+                    />
+                </div>
+
+                {error && (
+                    <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200 text-xs font-bold text-center">
+                        ⚠️ {error}
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-lg shadow-blue-900/50 transform transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    {loading ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Processing...</span>
+                        </>
+                    ) : (
+                        <span>{isSignUp ? 'Create Account' : 'Enter Stadium'}</span>
+                    )}
+                </button>
+            </form>
+
+        </div>
+        
+        <p className="mt-8 text-slate-500 text-xs font-medium">
+            © 2026 Official Tournament Predictor
+        </p>
+      </div>
+    </div>
   );
 }
