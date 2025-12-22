@@ -7,9 +7,11 @@ import { usePrediction } from "../hooks/usePrediction";
 import { calculateGroupStandings, calculateThirdPlaceStandings } from "../lib/calculator"; 
 import { calculateBracketMapping } from "../lib/bracket"; 
 import { TRANSLATIONS, GROUPS, KNOCKOUT_STAGES, COLORS, TEAM_NAMES, TEAM_NICKNAMES, TEAM_NAMES_NO } from "../lib/constants"; 
-import { Match, TeamData, Prediction, BracketMap } from "../lib/types"; 
+import { Match, TeamData } from "../lib/types"; 
 
 import Header from "../components/Header"; 
+// ✅ ADDED SubNavigation Import
+import SubNavigation from "../components/SubNavigation"; 
 import Leaderboard from "../components/Leaderboard";
 import Bracket from "../components/Bracket";
 import GroupStage from "../components/GroupStage";
@@ -23,31 +25,17 @@ const LoadingComponent = ({ t, COLORS }: { t: any, COLORS: any }) => (
     <div className="min-h-screen flex items-center justify-center text-white font-bold animate-pulse" style={{ backgroundColor: COLORS.navy }}>{t.loading || "Loading..."}</div>
 );
 
-// ✅ FIXED: Safe lookup without TS errors
 const getTeamName = (id: string, def: string, lang: string, showNicknames: boolean) => {
     if (!id) return def;
-
-    // 1. Check Norwegian Override
-    if (lang === 'no' && TEAM_NAMES_NO[id]) {
-        return TEAM_NAMES_NO[id];
-    }
-
-    // 2. Check Nicknames
+    if (lang === 'no' && TEAM_NAMES_NO[id]) return TEAM_NAMES_NO[id];
     if (showNicknames) {
         // @ts-ignore
         const nicknames = TEAM_NICKNAMES[lang];
-        if (nicknames && nicknames[id]) {
-            return nicknames[id];
-        }
+        if (nicknames && nicknames[id]) return nicknames[id];
     }
-
-    // 3. Check Standard Translation
     // @ts-ignore
     const names = TEAM_NAMES[lang];
-    if (names && names[id]) {
-        return names[id];
-    }
-
+    if (names && names[id]) return names[id];
     return def;
 };
 
@@ -63,7 +51,6 @@ export default function Home() {
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [showNicknames, setShowNicknames] = useState(false);
   
-  // ✅ NUCLEAR FIX: Cast to any to prevent strict type errors on main page too
   const t: any = (TRANSLATIONS as any)[lang] || TRANSLATIONS.en;
 
   const { handlePredict, handleReveal, revealedMatches, saveStatus, handleAutoFill, handleClear } = usePrediction(
@@ -104,7 +91,6 @@ export default function Home() {
       return allTeams.reduce((acc, t) => { acc[t.id] = t; return acc; }, {} as Record<string, TeamData>);
   }, [allTeams]);
 
-  // --- HANDLERS ---
   const handleSmartAutoFill = () => { setIsAutoFillModalOpen(true); };
   const handleSmartClear = () => {
       const scope = currentMainTab === 'KNOCKOUT' ? 'Knockout' : 'All Groups';
@@ -168,7 +154,8 @@ export default function Home() {
          setShowNicknames={setShowNicknames}
       />
 
-      <div className="bg-white border-b border-slate-200 sticky top-16 z-30 shadow-sm flex justify-around p-0">
+      {/* 1. MAIN TABS - DARK THEME (Matches your screenshot) */}
+      <div className="bg-slate-900 border-b border-white/10 sticky top-16 z-30 shadow-md flex justify-around p-0">
          {["GROUPS", "KNOCKOUT", "MATCHES", "RESULTS"].map(tab => (
              <button 
                 key={tab}
@@ -176,13 +163,36 @@ export default function Home() {
                     setCurrentMainTab(tab as any);
                     window.scrollTo({top: 0, behavior: 'smooth'});
                 }}
-                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-colors border-b-4 ${currentMainTab === tab ? "text-blue-900 border-blue-600 bg-blue-50" : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50"}`}
+                className={`
+                    flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-colors border-b-4 
+                    ${currentMainTab === tab 
+                        ? "text-white border-blue-500 bg-white/5"  
+                        : "text-slate-400 border-transparent hover:text-white hover:bg-white/5" 
+                    }
+                `}
              >
                  {t[tab.toLowerCase()] || tab}
              </button>
          ))}
       </div>
 
+      {/* 2. SUB-NAVIGATION (Correctly Placed Below) */}
+      <SubNavigation 
+           currentMainTab={currentMainTab}
+           activeTab={activeTab}
+           setActiveTab={setActiveTab}
+           activeKnockoutRound={activeKnockoutRound}
+           setActiveKnockoutRound={setActiveKnockoutRound}
+           showTools={true}
+           hasPredictions={Object.keys(predictions).length > 0}
+           isGenerating={false}
+           handleSmartAutoFill={handleSmartAutoFill}
+           handleSmartClear={handleSmartClear}
+           getSubTabStatusDot={getSubTabStatusDot}
+           getKnockoutDot={getKnockoutDot}
+      />
+
+      {/* 3. CONTENT AREA */}
       <div className="pt-4 px-2 md:px-0 max-w-5xl mx-auto">
         {currentMainTab === "GROUPS" && (
              <GroupStage 
@@ -233,17 +243,17 @@ export default function Home() {
       <Suspense fallback={null}> <WelcomeListener onOpen={() => setIsRulesModalOpen(true)} /> </Suspense>
 
       <AutoFillModal 
-          isOpen={isAutoFillModalOpen} 
-          onClose={() => setIsAutoFillModalOpen(false)} 
-          onConfirm={(boostedTeams) => handleAutoFill(
-              allTeams, 
-              currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS', 
-              boostedTeams, 
-              bracketMap
-          )} 
-          allTeams={allTeams} 
-          lang={lang} 
-          t={t} 
+         isOpen={isAutoFillModalOpen} 
+         onClose={() => setIsAutoFillModalOpen(false)} 
+         onConfirm={(boostedTeams) => handleAutoFill(
+             allTeams, 
+             currentMainTab === 'KNOCKOUT' ? 'KNOCKOUT' : 'ALL_GROUPS', 
+             boostedTeams, 
+             bracketMap
+         )} 
+         allTeams={allTeams} 
+         lang={lang} 
+         t={t} 
       />
       <RulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} t={t} />
       

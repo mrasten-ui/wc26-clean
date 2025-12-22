@@ -1,6 +1,5 @@
 "use client";
 import { COLORS } from "../lib/constants";
-import SubNavigation from "./SubNavigation";
 
 interface HeaderProps {
   user: any;
@@ -32,21 +31,9 @@ interface HeaderProps {
 
 export default function Header({
   user,
-  activeTab,
-  setActiveTab,
-  activeKnockoutRound,
-  setActiveKnockoutRound,
-  currentMainTab,
   saveStatus,
-  isGenerating,
-  handleGroupAutoFill,
-  handleKnockoutAutoFill,
-  handleClearPredictions,
-  hasPredictions,
   handleLogout,
   t,
-  getGroupStatus,
-  getKnockoutStatus,
   onOpenRules,
 }: HeaderProps) {
 
@@ -56,10 +43,13 @@ export default function Header({
         {/* TOP BAR */}
         <div className="relative max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
             
-            {/* LEFT: Empty Spacer (Maintains balance for the centered logo) */}
-            <div className="w-10 z-10"></div>
+            {/* LEFT: Flags / Lang (Optional placeholder if you want flags back here, otherwise Spacer) */}
+            <div className="flex gap-2 z-10">
+                 {/* You can re-add language buttons here if needed, currently keeping spacer to match design */}
+                 <div className="w-10"></div>
+            </div>
 
-            {/* CENTER: Logo + Text (Side-by-Side) */}
+            {/* CENTER: Logo + Text */}
             <button 
                 onClick={onOpenRules}
                 className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-4 group"
@@ -80,7 +70,7 @@ export default function Header({
                  </div>
             </button>
 
-            {/* RIGHT: User Profile */}
+            {/* RIGHT: User Profile / Hamburger */}
             <div className="flex items-center gap-3 z-10">
                  {saveStatus === 'saving' && (
                      <div className="hidden md:block text-[10px] font-bold text-blue-300 animate-pulse uppercase tracking-wider">
@@ -88,36 +78,24 @@ export default function Header({
                      </div>
                  )}
                  
-                 <div className="flex items-center gap-2 bg-black/20 pl-1 pr-3 py-1 rounded-full border border-white/5 backdrop-blur-sm">
+                 {/* User Badge */}
+                 <div className="hidden md:flex items-center gap-2 bg-black/20 pl-1 pr-3 py-1 rounded-full border border-white/5 backdrop-blur-sm">
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white shadow-inner ring-1 ring-white/10">
                         {user?.email?.[0].toUpperCase()}
                     </div>
-                    <span className="hidden md:block text-xs font-bold text-slate-200 max-w-[80px] truncate">
+                    <span className="text-xs font-bold text-slate-200 max-w-[80px] truncate">
                         {user?.full_name || 'Fan'}
                     </span>
                  </div>
                  
+                 {/* Logout / Menu Icon */}
                  <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clipRule="evenodd" /><path fillRule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l1.048-.943a.75.75 0 10-1.004-1.114l-2.5 2.25a.75.75 0 000 1.114l2.5 2.25a.75.75 0 101.004-1.114l-1.048-.943h9.546A.75.75 0 0019 10z" clipRule="evenodd" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
                  </button>
             </div>
         </div>
-
-        {/* SUB NAVIGATION */}
-        <SubNavigation 
-            currentMainTab={currentMainTab}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            activeKnockoutRound={activeKnockoutRound}
-            setActiveKnockoutRound={setActiveKnockoutRound}
-            showTools={true}
-            hasPredictions={hasPredictions}
-            isGenerating={isGenerating}
-            handleSmartAutoFill={handleGroupAutoFill}
-            handleSmartClear={handleClearPredictions}
-            getSubTabStatusDot={getGroupStatus}
-            getKnockoutDot={getKnockoutStatus}
-        />
     </header>
   );
 }
